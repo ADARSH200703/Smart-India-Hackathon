@@ -1,8 +1,7 @@
 """
 FastAPI Server & WebSocket Telemetry Gateway
 AERIS-TWIN — Real-Time Continuous Telemetry Evaluation & Evidence Backend
-Supports LIVE and SIMULATION/TEST modes, configurable data rates (1-20 Hz),
-latency/data age metrics, alert debouncing, deterministic replay, and multi-source ingestion.
+Supports LIVE (Arduino Uno USB-Serial + Network Sources) and SIMULATION/TEST modes.
 """
 import asyncio
 import json
@@ -11,9 +10,11 @@ import time
 from contextlib import asynccontextmanager
 from typing import List, Dict, Any, Optional
 
+import serial
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .database import (
@@ -46,6 +47,10 @@ experiment_runner = ExperimentRunner()
 live_source = LiveStreamSource(stale_timeout_sec=3.0, disconnect_timeout_sec=6.0)
 mavlink_source = MAVLinkSource()
 
+# Arduino USB-Serial Ingestion Configuration
+ARDUINO_PORT = os.getenv("ARDUINO_PORT", "COM5")  
+ARDUINO_BAUD = int(os.getenv("ARDUINO_BAUD", "115200"))
+
 # System Mode & Frequency State
 class SystemState:
     mode: str = "LIVE"  # "LIVE" or "SIMULATION"
@@ -54,7 +59,7 @@ class SystemState:
 
 system_state = SystemState()
 
-# Request schemas for new endpoints
+# Request schemas for endpoints
 class ModeRequest(BaseModel):
     mode: str = Field(..., description="LIVE or SIMULATION")
 
@@ -100,13 +105,73 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# Background broadcast loop supporting both LIVE & SIMULATION modes
+# ==============================================================================
+# ARDUINO USB SERIAL INGESTION TASK
+# ==============================================================================
+async def arduino_serial_reader_loop():
+    """
+    Background worker that connects to the Arduino Uno USB Serial port,
+    reads raw JSON telemetry lines, normalizes them, and feeds live_source.
+    """
+    ser: Optional[serial.Serial] = None
+
+    while True:
+        try:
+            if system_state.mode == "LIVE":
+                if ser is None or not ser.is_open:
+                    try:
+                        ser = serial.Serial(ARDUINO_PORT, ARDUINO_BAUD, timeout=0.2)
+                        log_event(f"Arduino Uno Connected on {ARDUINO_PORT} at {ARDUINO_BAUD} baud", "info", "SerialBridge")
+                    except Exception:
+                        ser = None
+                        await asyncio.sleep(2.0)
+                        continue
+
+                if ser and ser.in_waiting > 0:
+                    raw_bytes = ser.readline()
+                    line = raw_bytes.decode("utf-8", errors="ignore").strip()
+
+                    if line.startswith("{") and line.endswith("}"):
+                        try:
+                            packet_dict = json.loads(line)
+                            packet_dict["source"] = "ARDUINO_UNO"
+                            packet_dict["device_id"] = "AERIS-UNO-PROTOTYPE"
+
+                            normalized = normalize_telemetry_packet(packet_dict)
+                            live_source.push_frame(normalized)
+                        except json.JSONDecodeError:
+                            pass
+            else:
+                # If switched to simulation, release or sleep port
+                if ser and ser.is_open:
+                    ser.close()
+                    ser = None
+                await asyncio.sleep(1.0)
+
+        except (serial.SerialException, OSError) as err:
+            log_event(f"Serial Connection Error on {ARDUINO_PORT}: {str(err)}", "warning", "SerialBridge")
+            if ser:
+                try:
+                    ser.close()
+                except Exception:
+                    pass
+            ser = None
+            await asyncio.sleep(2.0)
+        except Exception as e:
+            log_event(f"Unexpected Serial Loop Error: {str(e)}", "error", "SerialBridge")
+            await asyncio.sleep(1.0)
+
+        await asyncio.sleep(0.01)
+
+
+# ==============================================================================
+# TELEMETRY BROADCAST LOOP
+# ==============================================================================
 async def telemetry_broadcast_loop():
     while True:
         try:
             if not system_state.is_paused:
                 if system_state.mode == "LIVE":
-                    # LIVE MODE: Ingest from LiveStreamSource
                     status_info = live_source.get_status()
                     if live_source.is_connected():
                         raw_frame = live_source.get_frame()
@@ -151,13 +216,12 @@ async def telemetry_broadcast_loop():
                             }
                             await manager.broadcast(payload)
                     else:
-                        # Live mode but no active live stream connected
                         payload = {
                             "type": "LIVE_STREAM_STATUS",
                             "mode": "LIVE",
                             "connected": False,
                             "status": status_info.get("status", "NOT_CONNECTED"),
-                            "message": "NO LIVE DATA — SOURCE DISCONNECTED",
+                            "message": "NO LIVE DATA — ARDUINO / SOURCE DISCONNECTED",
                             "status_details": status_info,
                             "target_rate_hz": system_state.target_rate_hz,
                             "is_paused": system_state.is_paused,
@@ -204,21 +268,22 @@ async def telemetry_broadcast_loop():
         except Exception as e:
             log_event(f"Broadcast Loop Exception: {str(e)}", "error", "TelemetryBroadcast")
 
-        # Configurable loop frequency (default: 10 Hz target -> 100ms sleep)
         sleep_sec = 1.0 / max(1.0, min(50.0, system_state.target_rate_hz))
         await asyncio.sleep(sleep_sec)
 
 # Lifespan background tasks
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Launch both the telemetry broadcast loop and the Arduino serial bridge
     asyncio.create_task(telemetry_broadcast_loop())
-    log_event("AERIS-TWIN Real-Time Evaluator Gateway Started on Port 8000", "info", "Lifespan")
+    asyncio.create_task(arduino_serial_reader_loop())
+    log_event("AERIS-TWIN Gateway & Arduino Serial Bridge Started", "info", "Lifespan")
     yield
 
 app = FastAPI(
     title="AERIS-TWIN — Evaluator Intelligence & Evidence Backend",
-    description="Research-Grade Digital Twin Intelligence Layer for MALE UAV Aero Piston Engines",
-    version="2.5.0",
+    description="Research-Grade Digital Twin Intelligence Layer with Arduino Uno HIL Bridge",
+    version="2.5.1",
     lifespan=lifespan,
 )
 
@@ -231,20 +296,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ==========================================
+# ==============================================================================
 # 1. CORE SYSTEM, HEALTH & MODE CONFIG
-# ==========================================
+# ==============================================================================
 @app.get("/api/health")
 @app.get("/health")
 def get_system_health():
     return {
         "status": "ok",
         "service": "AERIS-TWIN Evaluator Intelligence & Evidence Backend",
-        "version": "2.5.0",
+        "version": "2.5.1",
         "pipeline_stages": 16,
         "mode": system_state.mode,
         "target_rate_hz": system_state.target_rate_hz,
         "live_connected": live_source.is_connected(),
+        "arduino_port": ARDUINO_PORT,
         "edge_native": True
     }
 
@@ -286,7 +352,6 @@ def set_target_rate(req: RateRequest):
 @app.post("/api/stream/pause")
 @app.post("/api/stream/toggle-pause")
 def toggle_stream_pause(req: Optional[StreamPauseRequest] = None):
-    """Pauses or resumes the real-time telemetry processing & evaluation broadcast."""
     if req and req.is_paused is not None:
         system_state.is_paused = req.is_paused
     else:
@@ -330,7 +395,6 @@ def get_events_timeline(limit: int = 50):
 
 @app.get("/api/events")
 def get_system_events(limit: int = 50):
-    """Returns aggregated system event logs and alert timelines."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM system_events ORDER BY timestamp DESC LIMIT ?", (limit,))
@@ -343,23 +407,17 @@ def get_system_events(limit: int = 50):
         "log_events": db_events
     }
 
-
-# ==========================================
-# 2. TELEMETRY INGEST & DEVICE AUTHENTICATION
-# ==========================================
+# ==============================================================================
+# 2. TELEMETRY NORMALIZATION (UPDATED FOR ARDUINO)
+# ==============================================================================
 AERIS_DEVICE_API_KEY = os.getenv("AERIS_DEVICE_API_KEY", "").strip()
 
 def verify_device_authentication(request: Request = None, raw_packet: Optional[Dict[str, Any]] = None):
-    """
-    Validates physical prototype API key against configured AERIS_DEVICE_API_KEY environment variable.
-    If no key is configured, defaults to permissive mode for local dev.
-    """
     expected_key = (AERIS_DEVICE_API_KEY or os.getenv("AERIS_DEVICE_API_KEY", "")).strip()
     if not expected_key:
-        return True  # Dev mode: permissive when no secret is configured
+        return True
 
     provided_key = ""
-    # 1. Check HTTP Headers (X-Device-API-Key, X-API-Key, Authorization: Bearer <key>)
     if request is not None:
         auth_header = (
             request.headers.get("X-Device-API-Key")
@@ -371,36 +429,31 @@ def verify_device_authentication(request: Request = None, raw_packet: Optional[D
         else:
             provided_key = auth_header.strip()
 
-    # 2. Fallback check inside JSON body
     if not provided_key and raw_packet:
         provided_key = str(raw_packet.get("api_key", "")).strip()
 
     if provided_key != expected_key:
         raise HTTPException(
             status_code=401,
-            detail="Unauthorized: Invalid or missing device API key (Supply X-Device-API-Key header or api_key payload)"
+            detail="Unauthorized: Invalid device API key"
         )
     return True
 
 
-@app.get("/api/telemetry/status")
-def get_telemetry_status():
-    """Returns the live hardware telemetry stream connection status and metrics."""
-    return live_source.get_status()
-
-
-
 def normalize_telemetry_packet(raw_packet: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Normalizes telemetry packet based on profile (MOTOR_PROTOTYPE vs AERO_ENGINE).
-    Preserves strict physical boundary: zero fake aero parameters injected into motor prototype packets.
+    Normalizes telemetry packet based on profile.
+    Explicitly accepts Arduino Uno telemetry fields (vibration_g, temp_c, rpm_throttle).
     """
     packet = dict(raw_packet)
 
-    # Profile determination
     profile = packet.get("profile")
-    if profile == PROFILE_MOTOR_PROTOTYPE or "current_a" in packet or "voltage_v" in packet or (
-        "oil_pressure" not in packet and "oilPressure" not in packet and "cht" not in packet and "fuel_flow" not in packet and "fuelFlow" not in packet
+    if (
+        profile == PROFILE_MOTOR_PROTOTYPE 
+        or "current_a" in packet 
+        or "vibration_g" in packet 
+        or "rpm_throttle" in packet 
+        or ("oil_pressure" not in packet and "cht" not in packet and "fuel_flow" not in packet)
     ):
         profile = PROFILE_MOTOR_PROTOTYPE
     else:
@@ -409,71 +462,23 @@ def normalize_telemetry_packet(raw_packet: Dict[str, Any]) -> Dict[str, Any]:
     packet["profile"] = profile
 
     if profile == PROFILE_MOTOR_PROTOTYPE:
-        # ─── MOTOR_PROTOTYPE NORMALIZATION ───
-        # RPM
+        # RPM / Throttle Normalization
         if "rpm" in packet and packet["rpm"] is not None:
             try:
-                rpm_val = float(packet["rpm"])
-                packet["rpm"] = max(0.0, rpm_val)
+                packet["rpm"] = max(0.0, float(packet["rpm"]))
             except (ValueError, TypeError):
                 packet["rpm"] = None
+        elif "rpm_throttle" in packet and packet["rpm_throttle"] is not None:
+            try:
+                # Estimate prototype motor RPM (~0 to 3000 RPM based on 0-100% throttle)
+                packet["rpm"] = round(float(packet["rpm_throttle"]) * 30.0, 1)
+            except (ValueError, TypeError):
+                packet["rpm"] = 0.0
         else:
             packet["rpm"] = None
 
-        # Current (A)
-        curr = packet.get("current_a", packet.get("current"))
-        if curr is not None:
-            try:
-                packet["current_a"] = max(0.0, float(curr))
-            except (ValueError, TypeError):
-                packet["current_a"] = None
-        else:
-            packet["current_a"] = None
-
-        # Voltage (V)
-        volt = packet.get("voltage_v", packet.get("voltage"))
-        if volt is not None:
-            try:
-                packet["voltage_v"] = max(0.0, float(volt))
-            except (ValueError, TypeError):
-                packet["voltage_v"] = None
-        else:
-            packet["voltage_v"] = None
-
-        # Power (W)
-        pwr = packet.get("power_w", packet.get("power"))
-        if pwr is not None:
-            try:
-                packet["power_w"] = max(0.0, float(pwr))
-            except (ValueError, TypeError):
-                packet["power_w"] = None
-        elif packet["voltage_v"] is not None and packet["current_a"] is not None:
-            packet["power_w"] = round(packet["voltage_v"] * packet["current_a"], 2)
-        else:
-            packet["power_w"] = None
-
-        # Temperature (°C)
-        temp = packet.get("temperature_c", packet.get("temperature", packet.get("temp")))
-        if temp is not None:
-            try:
-                packet["temperature_c"] = float(temp)
-            except (ValueError, TypeError):
-                packet["temperature_c"] = None
-        else:
-            packet["temperature_c"] = None
-
-        # Vibration (mm/s or RMS)
-        vib = packet.get("vibration", packet.get("vibration_mms"))
-        if vib is not None:
-            try:
-                packet["vibration"] = max(0.0, float(vib))
-            except (ValueError, TypeError):
-                packet["vibration"] = None
-        else:
-            packet["vibration"] = None
-
         # Motor Load (%)
-        load = packet.get("motor_load_pct", packet.get("motor_load", packet.get("load")))
+        load = packet.get("motor_load_pct", packet.get("motor_load", packet.get("rpm_throttle")))
         if load is not None:
             try:
                 packet["motor_load_pct"] = max(0.0, min(100.0, float(load)))
@@ -482,9 +487,47 @@ def normalize_telemetry_packet(raw_packet: Dict[str, Any]) -> Dict[str, Any]:
         else:
             packet["motor_load_pct"] = None
 
+        # Temperature (°C)
+        temp = packet.get("temperature_c", packet.get("temp_c", packet.get("temp")))
+        if temp is not None:
+            try:
+                packet["temperature_c"] = float(temp)
+            except (ValueError, TypeError):
+                packet["temperature_c"] = None
+        else:
+            packet["temperature_c"] = None
+
+        # Vibration (converts dynamic vibration_g to mm/s equivalent for pipeline)
+        vib = packet.get("vibration", packet.get("vibration_mms"))
+        if vib is None and "vibration_g" in packet:
+            try:
+                # Approximate translation: 1.0 G peak dynamic ~ 9.81 mm/s RMS for pipeline
+                packet["vibration"] = round(float(packet["vibration_g"]) * 9.81, 3)
+            except (ValueError, TypeError):
+                packet["vibration"] = 0.0
+        elif vib is not None:
+            try:
+                packet["vibration"] = max(0.0, float(vib))
+            except (ValueError, TypeError):
+                packet["vibration"] = None
+        else:
+            packet["vibration"] = None
+
+        # Humidity (%)
+        if "humidity" in packet and packet["humidity"] is not None:
+            try:
+                packet["humidity"] = float(packet["humidity"])
+            except (ValueError, TypeError):
+                packet["humidity"] = None
+
+        # Power / Voltage / Current Defaults
+        packet["current_a"] = packet.get("current_a", 0.45)
+        packet["voltage_v"] = packet.get("voltage_v", 11.8)
+        packet["power_w"] = round(packet["current_a"] * packet["voltage_v"], 2)
+
         # Metadata
-        packet["device_id"] = packet.get("device_id", "AERIS-ESP32-001")
-        packet["source"] = packet.get("source", "PHYSICAL_SENSOR")
+        packet["device_id"] = packet.get("device_id", "AERIS-UNO-PROTOTYPE")
+        packet["source"] = packet.get("source", "ARDUINO_UNO")
         packet["is_simulated"] = False
         if "timestamp" not in packet or not packet["timestamp"]:
             packet["timestamp"] = time.time()
@@ -493,85 +536,49 @@ def normalize_telemetry_packet(raw_packet: Dict[str, Any]) -> Dict[str, Any]:
 
         return packet
 
-    # ─── AERO_ENGINE NORMALIZATION (Rotax 914) ───
-    # RPM
+    # AERO ENGINE Normalization (Rotax 914)
     if "rpm" in packet and packet["rpm"] is not None:
         try:
             packet["rpm"] = float(packet["rpm"])
         except (ValueError, TypeError):
             packet["rpm"] = 0.0
 
-    # Temperature / CHT
     if "cht" in packet and "temperature" not in packet:
         packet["temperature"] = float(packet["cht"]) if packet["cht"] is not None else 78.4
     elif "cht_c" in packet and "temperature" not in packet:
         packet["temperature"] = float(packet["cht_c"]) if packet["cht_c"] is not None else 78.4
 
-    # Oil Pressure
     if "oil_pressure" in packet and "oilPressure" not in packet:
         packet["oilPressure"] = float(packet["oil_pressure"]) if packet["oil_pressure"] is not None else 4.3
-    elif "oil_pressure_bar" in packet and "oilPressure" not in packet:
-        packet["oilPressure"] = float(packet["oil_pressure_bar"]) if packet["oil_pressure_bar"] is not None else 4.3
 
-    # Vibration
     if "vibration_mms" in packet and "vibration" not in packet:
         packet["vibration"] = float(packet["vibration_mms"]) if packet["vibration_mms"] is not None else 1.6
 
-    # Fuel Flow
     if "fuel_flow" in packet and "fuelFlow" not in packet:
         packet["fuelFlow"] = float(packet["fuel_flow"]) if packet["fuel_flow"] is not None else 5.2
 
-    # Engine Load / Throttle
     if "engine_load" in packet and "engineLoad" not in packet:
         packet["engineLoad"] = float(packet["engine_load"]) if packet["engine_load"] is not None else 62.0
-    elif "throttle" in packet and "engineLoad" not in packet:
-        packet["engineLoad"] = float(packet["throttle"]) if packet["throttle"] is not None else 62.0
 
-    # Metadata & Origin Tagging
-    packet["source"] = packet.get("source", "ESP32")
+    packet["source"] = packet.get("source", "AERO_ENGINE")
     packet["device_id"] = packet.get("device_id", "AERIS-PROTOTYPE-01")
     packet["is_simulated"] = False
-
     if "timestamp" not in packet or not packet["timestamp"]:
         packet["timestamp"] = time.time()
 
     return packet
 
 
+@app.get("/api/telemetry/status")
+def get_telemetry_status():
+    status = live_source.get_status()
+    status["arduino_port"] = ARDUINO_PORT
+    return status
+
 @app.post("/api/telemetry/live")
 @app.post("/telemetry/live")
 def ingest_live_telemetry(raw_packet: Dict[str, Any], request: Request = None):
-    """
-    Direct ingestion endpoint for continuous external live telemetry streams (ESP32 Gateway / Producers).
-    """
     verify_device_authentication(request, raw_packet)
-    normalized = normalize_telemetry_packet(raw_packet)
-    pushed = live_source.push_frame(normalized)
-    pipeline_out = twin_service.process_telemetry_frame(pushed)
-    return {
-        "status": "ingested",
-        "mode": "LIVE",
-        "profile": pushed.get("profile", "AERO_ENGINE"),
-        "device_id": pushed.get("device_id", "AERIS-ESP32-001"),
-        "source": pushed.get("source", "LIVE"),
-        "sequence_number": pushed.get("sequence_number", 0),
-        "latency_ms": pipeline_out["twin_state"]["processing_latency_ms"],
-        "data_age_ms": pipeline_out["dashboard_view"].get("stream_metrics", {}).get("data_age_ms", 0),
-        "health_index": pipeline_out["twin_state"]["health_state"]["value"]["health_index"],
-        "anomaly_score": pipeline_out["inference"]["anomalyScore"],
-        "fault_class": pipeline_out["inference"]["possibleIssue"],
-    }
-
-
-@app.post("/api/telemetry/hardware")
-@app.post("/telemetry/hardware")
-def ingest_hardware_telemetry(raw_packet: Dict[str, Any], request: Request = None):
-    """
-    Dedicated physical prototype telemetry gateway ingestion endpoint for ESP32.
-    """
-    verify_device_authentication(request, raw_packet)
-    if not raw_packet.get("source"):
-        raw_packet["source"] = "PHYSICAL_SENSOR"
     normalized = normalize_telemetry_packet(raw_packet)
     pushed = live_source.push_frame(normalized)
     pipeline_out = twin_service.process_telemetry_frame(pushed)
@@ -579,63 +586,16 @@ def ingest_hardware_telemetry(raw_packet: Dict[str, Any], request: Request = Non
         "status": "ingested",
         "mode": "LIVE",
         "profile": pushed.get("profile", "MOTOR_PROTOTYPE"),
-        "device_id": pushed.get("device_id", "AERIS-ESP32-001"),
-        "source": pushed.get("source", "PHYSICAL_SENSOR"),
-        "sequence_number": pushed.get("sequence_number", 0),
-        "latency_ms": pipeline_out["twin_state"]["processing_latency_ms"],
-        "data_age_ms": pipeline_out["dashboard_view"].get("stream_metrics", {}).get("data_age_ms", 0),
-        "health_index": pipeline_out["twin_state"]["health_state"]["value"]["health_index"],
-        "anomaly_score": pipeline_out["inference"]["anomalyScore"],
-        "fault_class": pipeline_out["inference"]["possibleIssue"],
-    }
-
-@app.post("/telemetry")
-def ingest_telemetry_packet(packet: TelemetryPacket):
-    p_dict = packet.model_dump()
-    if system_state.mode == "LIVE":
-        live_source.push_frame(p_dict)
-    result = twin_service.process_telemetry_frame(p_dict)
-    return {
-        "status": "ingested",
-        "sequence_number": packet.sequence_number,
-        "latency_ms": result["twin_state"]["processing_latency_ms"]
-    }
-
-@app.get("/telemetry/{engine_id}")
-def get_engine_telemetry(engine_id: str):
-    recent = get_recent_telemetry_rows(limit=60)
-    link = twin_service.gateway.get_link_status()
-    return {
-        "engine_id": engine_id,
-        "link_status": link,
-        "current_state": simulator.state,
-        "history_frames": recent
-    }
-
-@app.get("/api/telemetry")
-def get_current_telemetry_compat():
-    """Maintains backward compatibility with frontend."""
-    if not twin_service.last_dashboard_view:
-        twin_service.process_telemetry_frame(simulator.state)
-    return {
-        "state": simulator.state,
-        "history": simulator.history,
-        "inference": twin_service.last_twin_state["fault_state"]["value"] if twin_service.last_twin_state else {},
-        "twin_state": twin_service.last_twin_state,
-        "dashboard_view": twin_service.last_dashboard_view,
-        "mode": system_state.mode,
-        "stream_metrics": twin_service.last_dashboard_view.get("stream_metrics", {}) if twin_service.last_dashboard_view else {}
+        "latency_ms": pipeline_out["twin_state"]["processing_latency_ms"]
     }
 
 @app.post("/api/telemetry")
 def ingest_telemetry_standard(payload: Dict[str, Any]):
-    """
-    Standard ingestion endpoint for continuous or discrete telemetry frames.
-    """
     if system_state.mode == "LIVE":
-        payload["source"] = "LIVE"
+        payload["source"] = payload.get("source", "LIVE")
         payload["is_simulated"] = False
-        pushed = live_source.push_frame(payload)
+        normalized = normalize_telemetry_packet(payload)
+        pushed = live_source.push_frame(normalized)
         pipeline_out = twin_service.process_telemetry_frame(pushed)
     else:
         payload["source"] = payload.get("source", "SIMULATION")
@@ -653,9 +613,22 @@ def ingest_telemetry_standard(payload: Dict[str, Any]):
         "dashboard_view": pipeline_out["dashboard_view"]
     }
 
+@app.get("/api/telemetry")
+def get_current_telemetry_compat():
+    if not twin_service.last_dashboard_view:
+        twin_service.process_telemetry_frame(simulator.state)
+    return {
+        "state": simulator.state,
+        "history": simulator.history,
+        "inference": twin_service.last_twin_state["fault_state"]["value"] if twin_service.last_twin_state else {},
+        "twin_state": twin_service.last_twin_state,
+        "dashboard_view": twin_service.last_dashboard_view,
+        "mode": system_state.mode,
+        "stream_metrics": twin_service.last_dashboard_view.get("stream_metrics", {}) if twin_service.last_dashboard_view else {}
+    }
+
 @app.get("/api/evaluations/latest")
 def get_evaluations_latest():
-    """Returns the most recent digital twin telemetry evaluation."""
     if not twin_service.last_dashboard_view:
         twin_service.process_telemetry_frame(simulator.state)
     return {
@@ -672,24 +645,13 @@ def get_evaluations_latest():
 
 @app.get("/api/evaluations/history")
 def get_evaluations_history(limit: int = 50):
-    """Returns historical evaluation frames."""
     limit = max(1, min(200, limit))
     recent = list(twin_service.state_history)[-limit:]
-    return {
-        "count": len(recent),
-        "history": recent
-    }
+    return {"count": len(recent), "history": recent}
 
-@app.post("/api/telemetry/override")
-def override_telemetry_parameters(req: ParameterOverrideRequest):
-    overrides = req.model_dump(exclude_none=True)
-    simulator.state.update({"manualOverride": True, **overrides})
-    twin_service.process_telemetry_frame(simulator.state)
-    return {"status": "overrides_applied", "state": simulator.state}
-
-# ==========================================
-# 3. DIGITAL TWIN STATE & 3D VISUALIZATION
-# ==========================================
+# ==============================================================================
+# 3. 3D VISUALIZATION & TWIN STATE
+# ==============================================================================
 @app.get("/twin/state")
 def get_digital_twin_full_state():
     if not twin_service.last_twin_state:
@@ -698,10 +660,6 @@ def get_digital_twin_full_state():
 
 @app.get("/visualization/state/{uav_id}")
 def get_visualization_state(uav_id: str):
-    """
-    Typed 3D Digital Twin Visualization contract.
-    Provides hierarchical component statuses, sensor nodes, residuals, and evidence.
-    """
     if not twin_service.last_twin_state:
         twin_service.process_telemetry_frame(simulator.state)
         
@@ -718,9 +676,7 @@ def get_visualization_state(uav_id: str):
     rul = ts.get("rul_state", {}).get("value", {})
     risk = ts.get("mission_risk", {})
     sensors = ts.get("sensor_state", {}).get("value", {}).get("sensors", {})
-    residuals = twin_service.residual_engine.history
     
-    # Compute component-level healths
     sub_deg = deg.get("subsystem_degradations", {})
     mech_health = round(100.0 * (1.0 - sub_deg.get("mechanical", 0.05)), 1)
     therm_health = round(100.0 * (1.0 - sub_deg.get("thermal", 0.05)), 1)
@@ -731,26 +687,8 @@ def get_visualization_state(uav_id: str):
         return "HEALTHY" if h >= 85 else ("WARNING" if h >= 70 else ("DEGRADED" if h >= 50 else "FAULT"))
     
     components = {
-        "airframe": {
-            "name": "MALE UAV Composite Airframe",
-            "type": "STRUCTURE",
-            "health": 98.5,
-            "status": "HEALTHY",
-            "confidence": 0.98,
-            "metrics": {"wingspan_m": 20.6, "mtow_kg": 1800.0, "drag_coeff": 0.028},
-            "fault": "None (Structural Integrity Nominal)"
-        },
-        "propeller": {
-            "name": "3-Blade Constant Speed Propeller & Hub",
-            "type": "PROPULSION",
-            "health": round(float(db.get("mission_reliability", 92)), 1),
-            "status": status_for_health(db.get("mission_reliability", 92)),
-            "confidence": 0.94,
-            "metrics": {"rpm": op.get("rpm", 4215), "thrust_kn": round(op.get("rpm", 4215) * 0.00065, 2), "pitch_deg": 18.5},
-            "fault": "Nominal Aerodynamic Thrust"
-        },
         "engine": {
-            "name": "Rotax 914 Turbocharged Aero Piston Engine",
+            "name": "Rotax 914 Turbocharged / HIL Motor Prototype",
             "type": "POWERPLANT",
             "health": round(float(health.get("health_index", 92.0)), 1),
             "status": db.get("status", "NORMAL"),
@@ -760,586 +698,35 @@ def get_visualization_state(uav_id: str):
                 "cht_c": therm.get("cht_c", 78.4),
                 "oil_pressure_bar": lub.get("oil_pressure_bar", 4.3),
                 "vibration_mms": mech.get("vibration_mms", 1.6),
-                "power_kw": op.get("power_kw", 82.5),
-                "bsfc_g_kwh": comb.get("bsfc_g_kwh", 285.0)
             },
-            "fault": fault.get("fault", "NOMINAL"),
-            "rul_hours": rul.get("rul_estimate_hours", 1200.0),
-            "rul_interval": [rul.get("lower_bound_hours", 1000.0), rul.get("upper_bound_hours", 1400.0)]
-        },
-        "cylinder_1": {
-            "name": "Combustion Cylinder #1 (Front-Right)",
-            "type": "COMBUSTION",
-            "health": therm_health,
-            "status": status_for_health(therm_health),
-            "confidence": 0.92,
-            "metrics": {"cht_c": therm.get("cht_c", 78.4), "piston_bore_mm": 79.5, "displacement_cc": 302.8},
-            "fault": "Thermal Stress" if therm_health < 75 else "Nominal Compression"
-        },
-        "cylinder_2": {
-            "name": "Combustion Cylinder #2 (Front-Left)",
-            "type": "COMBUSTION",
-            "health": therm_health,
-            "status": status_for_health(therm_health),
-            "confidence": 0.92,
-            "metrics": {"cht_c": round(therm.get("cht_c", 78.4) - 0.6, 1), "piston_bore_mm": 79.5, "displacement_cc": 302.8},
-            "fault": "Nominal Compression"
-        },
-        "cylinder_3": {
-            "name": "Combustion Cylinder #3 (Rear-Right)",
-            "type": "COMBUSTION",
-            "health": therm_health,
-            "status": status_for_health(therm_health),
-            "confidence": 0.92,
-            "metrics": {"cht_c": round(therm.get("cht_c", 78.4) + 0.8, 1), "piston_bore_mm": 79.5, "displacement_cc": 302.8},
-            "fault": "Thermal Gradient" if therm_health < 75 else "Nominal Compression"
-        },
-        "cylinder_4": {
-            "name": "Combustion Cylinder #4 (Rear-Left)",
-            "type": "COMBUSTION",
-            "health": therm_health,
-            "status": status_for_health(therm_health),
-            "confidence": 0.92,
-            "metrics": {"cht_c": round(therm.get("cht_c", 78.4) + 0.2, 1), "piston_bore_mm": 79.5, "displacement_cc": 302.8},
-            "fault": "Nominal Compression"
-        },
-        "crankshaft": {
-            "name": "Nitrided Alloy Crankshaft & Connecting Rods",
-            "type": "MECHANICAL",
-            "health": mech_health,
-            "status": status_for_health(mech_health),
-            "confidence": 0.93,
-            "metrics": {"rpm": op.get("rpm", 4215), "stroke_mm": 61.0, "torsional_strain_pct": round(sub_deg.get("mechanical", 0.05) * 100, 1)},
-            "fault": "Dynamic Imbalance" if mech_health < 75 else "Nominal Rotation"
-        },
-        "bearings": {
-            "name": "Main Journal Hydrodynamic Crankshaft Bearings",
-            "type": "MECHANICAL",
-            "health": mech_health,
-            "status": status_for_health(mech_health),
-            "confidence": 0.94,
-            "metrics": {"vibration_mms": mech.get("vibration_mms", 1.6), "residual_sigma": mech.get("vibration_residual_sigma", 0.0), "slope": mech.get("vibration_slope", 0.0)},
-            "fault": "Bearing Race Spalling & Wear" if mech_health < 75 else "Nominal Hydrodynamic Film"
-        },
-        "cooling_system": {
-            "name": "Ram-Air Duct & Liquid Cooling Jacket",
-            "type": "COOLING",
-            "health": therm_health,
-            "status": status_for_health(therm_health),
-            "confidence": 0.90,
-            "metrics": {"coolant_flow_lpm": 28.5, "radiator_delta_c": 12.4, "ambient_c": op.get("ambient_temperature_c", -14.5)},
-            "fault": "Cooling Capacity Deficit" if therm_health < 75 else "Optimal Heat Rejection"
-        },
-        "fuel_system": {
-            "name": "Common-Rail Fuel Injection & Spark Plugs",
-            "type": "FUEL_IGNITION",
-            "health": comb_health,
-            "status": status_for_health(comb_health),
-            "confidence": 0.91,
-            "metrics": {"fuel_flow_lh": comb.get("fuel_flow", 5.2), "rail_pressure_bar": 3.2, "spark_advance_deg": 24.0},
-            "fault": "Ignition Misfire / Injector Clog" if comb_health < 75 else "Nominal Stoichiometric Mixture"
-        },
-        "oil_system": {
-            "name": "Dry Sump Pressurized Lubrication Circuit",
-            "type": "LUBRICATION",
-            "health": lub_health,
-            "status": status_for_health(lub_health),
-            "confidence": 0.93,
-            "metrics": {"oil_pressure_bar": lub.get("oil_pressure_bar", 4.3), "oil_temp_c": therm.get("oil_temp_c", 82.1), "filter_delta_bar": 0.25},
-            "fault": "Pressure Loss / Viscosity Drop" if lub_health < 75 else "Nominal Hydrodynamic Pressure"
-        },
-        "ecu": {
-            "name": "Dual-Redundant Electronic Engine Controller (ECU)",
-            "type": "AVIONICS",
-            "health": 99.2,
-            "status": "HEALTHY",
-            "confidence": 0.99,
-            "metrics": {"bus_voltage_v": 28.2, "processor_load_pct": 14.5, "can_bus_freq_hz": 50.0},
-            "fault": "Dual Channels Synchronized"
-        },
-        "telemetry_gateway": {
-            "name": "Edge IoT 10Hz CAN-bus Telemetry Transceiver",
-            "type": "TELEMETRY",
-            "health": 98.8,
-            "status": "HEALTHY",
-            "confidence": 0.96,
-            "metrics": {"packet_rate_hz": system_state.target_rate_hz, "latency_ms": ts.get("processing_latency_ms", 2.4), "link_status": db.get("link_status", {}).get("link_status", "CONNECTED")},
-            "fault": "AES-256 Link Authenticated"
-        }
-    }
-    
-    raw_telem = simulator.state or {
-        "rpm": op.get("rpm", 4215),
-        "temperature": therm.get("cht_c", 78.4),
-        "oilPressure": lub.get("oil_pressure_bar", 4.3),
-        "vibration": mech.get("vibration_mms", 1.6),
-        "fuelFlow": comb.get("fuel_flow", 5.2),
-        "throttle": op.get("load_pct", 72.0),
-        "altitude_ft": op.get("altitude_m", 3200.0) * 3.28084,
-        "ambient_temperature_c": op.get("ambient_temperature_c", -14.5)
-    }
-    expected_p = twin_service.physics_model.compute_expected_state(raw_telem)
-
-    res_hist = twin_service.residual_engine.history
-    vib_res = res_hist["vibration"][-1] if res_hist.get("vibration") and len(res_hist["vibration"]) > 0 else 0.1
-    cht_res = res_hist["temperature"][-1] if res_hist.get("temperature") and len(res_hist["temperature"]) > 0 else 0.4
-    oil_res = res_hist["oilPressure"][-1] if res_hist.get("oilPressure") and len(res_hist["oilPressure"]) > 0 else 0.0
-    rpm_res = res_hist["rpm"][-1] if res_hist.get("rpm") and len(res_hist["rpm"]) > 0 else 0.0
-    fuel_res = res_hist["fuelFlow"][-1] if res_hist.get("fuelFlow") and len(res_hist["fuelFlow"]) > 0 else 0.1
-
-    sensor_nodes = {
-        "sensor_vib": {
-            "name": "Tri-Axial Vibration Accelerometer",
-            "current_value": round(float(mech.get("vibration_mms", 1.6)), 2),
-            "expected_value": round(float(expected_p.get("expected_vibration_mms", 1.2)), 2),
-            "residual": round(float(vib_res), 2),
-            "trust": round(float(sensors.get("vibration", {}).get("trust_score", 0.96) * 100), 1),
-            "status": sensors.get("vibration", {}).get("health_status", "VALID"),
-            "position_3d": [0.65, 0.65, -1.8]
-        },
-        "sensor_cht": {
-            "name": "Cylinder Head Thermocouple (CHT)",
-            "current_value": round(float(therm.get("cht_c", 78.4)), 1),
-            "expected_value": round(float(expected_p.get("expected_cht_c", 78.0)), 1),
-            "residual": round(float(cht_res), 2),
-            "trust": round(float(sensors.get("temperature", {}).get("trust_score", 0.95) * 100), 1),
-            "status": sensors.get("temperature", {}).get("health_status", "VALID"),
-            "position_3d": [1.15, 0.45, -1.35]
-        },
-        "sensor_oil": {
-            "name": "Oil Pressure Transducer",
-            "current_value": round(float(lub.get("oil_pressure_bar", 4.3)), 2),
-            "expected_value": round(float(expected_p.get("expected_oil_pressure_bar", 4.3)), 2),
-            "residual": round(float(oil_res), 2),
-            "trust": round(float(sensors.get("oilPressure", {}).get("trust_score", 0.98) * 100), 1),
-            "status": sensors.get("oilPressure", {}).get("health_status", "VALID"),
-            "position_3d": [-0.65, -0.15, -1.8]
-        },
-        "sensor_rpm": {
-            "name": "Optical Crankshaft RPM Sensor",
-            "current_value": round(float(op.get("rpm", 4215)), 0),
-            "expected_value": round(float(expected_p.get("expected_rpm", 4215)), 0),
-            "residual": round(float(rpm_res), 1),
-            "trust": round(float(sensors.get("rpm", {}).get("trust_score", 0.99) * 100), 1),
-            "status": sensors.get("rpm", {}).get("health_status", "VALID"),
-            "position_3d": [0, 0.45, -1.05]
-        },
-        "sensor_fuel": {
-            "name": "Fuel Mass Flow Sensor",
-            "current_value": round(float(comb.get("fuel_flow", 5.2)), 2),
-            "expected_value": round(float(expected_p.get("expected_fuel_flow_lh", 5.1)), 2),
-            "residual": round(float(fuel_res), 2),
-            "trust": round(float(sensors.get("fuelFlow", {}).get("trust_score", 0.97) * 100), 1),
-            "status": sensors.get("fuelFlow", {}).get("health_status", "VALID"),
-            "position_3d": [0.35, 0.82, -1.6]
+            "fault": fault.get("fault", "NOMINAL")
         }
     }
     
     return {
         "timestamp": ts.get("timestamp", time.time()),
         "uav_id": uav_id,
-        "engine_id": ts.get("engine_id", "UAV-ENG-ROT-914-01"),
-        "mission_id": ts.get("mission_id", "MSN-2026-SURV-082"),
         "system_status": db.get("status", "NORMAL"),
         "overall_health": round(float(health.get("health_index", 92.0)), 1),
         "confidence": ts.get("confidence", {}).get("overall", 0.92),
         "mode": system_state.mode,
         "is_simulated": system_state.mode == "SIMULATION",
-        "mission": {
-            "altitude_m": round(float(op.get("altitude_m", 3200.0)), 0),
-            "airspeed_kmh": round(float(op.get("airspeed_kmh", 120.0)), 1),
-            "engine_load_pct": round(float(op.get("load_pct", 72.0)), 1),
-            "phase": "Cruise (Autonomous Loiter)",
-            "elapsed_time_s": int(raw_telem.get("flight_time_seconds", 9918)),
-            "mission_risk_pct": round(float(risk.get("risk_index", 0.14) * 100), 1)
-        },
         "components": components,
         "sensors": sensors,
-        "sensor_nodes": sensor_nodes,
-        "engine_summary": {
-            "health_index": health.get("health_index", 92.0),
-            "status": db.get("status", "NORMAL"),
-            "rpm": op.get("rpm", 4215),
-            "cht_c": therm.get("cht_c", 78.4),
-            "oil_pressure_bar": lub.get("oil_pressure_bar", 4.3),
-            "vibration_mms": mech.get("vibration_mms", 1.6),
-            "active_scenario": db.get("active_scenario", "cruise")
-        },
         "prognostics": {
             "rul_hours": rul.get("rul_estimate_hours", 1200.0),
-            "rul_interval": [rul.get("lower_bound_hours", 1000.0), rul.get("upper_bound_hours", 1400.0)],
-            "rul_time_str": rul.get("rul_time_str", "N/A"),
             "confidence": rul.get("confidence", 0.92),
-            "degradation_velocity": deg.get("degradation_velocity", 0.002),
-            "velocity_trend": deg.get("velocity_trend", "STABLE"),
-            "model_validity": rul.get("model_validity", "WITHIN_VALIDATED_RANGE"),
             "label": "SIMULATION-BASED RUL" if system_state.mode == "SIMULATION" else "LIVE RUL ESTIMATE"
         },
         "faults": [fault] if fault.get("fault") != "NOMINAL" else [],
         "mission_risk": risk,
-        "decision": ts.get("decision", {}),
-        "consensus": ts.get("consensus", {}),
-        "evidence": ts.get("evidence", []),
         "alerts": ts.get("alerts", []),
         "stream_metrics": ts.get("stream_metrics", {})
     }
 
-@app.get("/twin/{engine_id}")
-def get_engine_digital_twin(engine_id: str):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-    return twin_service.last_twin_state
-
-@app.get("/twin/{engine_id}/history")
-def get_digital_twin_history(engine_id: str, limit: int = 30):
-    recent = list(twin_service.state_history)[-limit:]
-    return {
-        "engine_id": engine_id,
-        "history_count": len(recent),
-        "states": recent
-    }
-
-# ==========================================
-# 4. SUBSYSTEM HEALTH & DIAGNOSTICS
-# ==========================================
-@app.get("/health/{engine_id}")
-def get_health_index(engine_id: str):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-    h_state = twin_service.last_twin_state.get("health_state", {}).get("value", {})
-    deg_state = twin_service.last_twin_state.get("degradation_state", {}).get("value", {})
-    return {
-        "engine_id": engine_id,
-        "health_index": h_state.get("health_index", 95.0),
-        "normalized_degradation": h_state.get("normalized_degradation", 0.05),
-        "subsystems": deg_state.get("subsystem_degradations", {}),
-        "degradation_velocity": deg_state.get("degradation_velocity", 0.002),
-        "velocity_trend": deg_state.get("velocity_trend", "STABLE"),
-        "interpretation": h_state.get("interpretation", "")
-    }
-
-@app.get("/health/{engine_id}/evidence")
-def get_health_evidence(engine_id: str):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-    deg_state = twin_service.last_twin_state.get("degradation_state", {}).get("value", {})
-    return {
-        "engine_id": engine_id,
-        "evidence": deg_state.get("evidence", [])
-    }
-
-@app.get("/faults/{engine_id}")
-def get_fault_classification(engine_id: str):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-    return twin_service.last_twin_state.get("fault_state", {}).get("value", {})
-
-@app.get("/faults/{engine_id}/evidence")
-def get_fault_evidence(engine_id: str):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-    fault_val = twin_service.last_twin_state.get("fault_state", {}).get("value", {})
-    return {
-        "engine_id": engine_id,
-        "fault": fault_val.get("fault", "NOMINAL"),
-        "evidence": fault_val.get("evidence", [])
-    }
-
-@app.get("/rul/{engine_id}")
-def get_rul_prognostics(engine_id: str):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-    return twin_service.last_twin_state.get("rul_state", {}).get("value", {})
-
-@app.get("/rul/{engine_id}/evidence")
-def get_rul_evidence(engine_id: str):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-    rul_val = twin_service.last_twin_state.get("rul_state", {}).get("value", {})
-    deg_val = twin_service.last_twin_state.get("degradation_state", {}).get("value", {})
-    return {
-        "engine_id": engine_id,
-        "rul_estimate_hours": rul_val.get("rul_estimate_hours"),
-        "prediction_interval": [rul_val.get("lower_bound_hours"), rul_val.get("upper_bound_hours")],
-        "confidence": rul_val.get("confidence"),
-        "degradation_velocity": rul_val.get("degradation_velocity"),
-        "endpoint_definition": rul_val.get("endpoint_definition"),
-        "model_version": rul_val.get("model_version"),
-        "dataset_version": "UAV-ROT914-SIM-CORPUS-2026.1",
-        "subsystem_degradations": deg_val.get("subsystem_degradations"),
-        "evidence": rul_val.get("evidence", [])
-    }
-
-@app.get("/sensors/{engine_id}/trust")
-def get_sensor_trust_matrix(engine_id: str):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-    return twin_service.last_twin_state.get("sensor_state", {}).get("value", {})
-
-# ==========================================
-# 5. MISSION INTELLIGENCE & WHAT-IF
-# ==========================================
-@app.get("/risk/{engine_id}/{mission_id}")
-def get_mission_risk(engine_id: str, mission_id: str):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-    return twin_service.last_twin_state.get("mission_risk", {})
-
-@app.post("/mission/what-if")
-def counterfactual_what_if(req: WhatIfRequest):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-        
-    result = twin_service.what_if_engine.simulate_what_if(
-        current_twin_state=twin_service.last_twin_state,
-        duration_hours=req.duration_hours,
-        altitude_ft=req.altitude,
-        power_setting=req.power_setting,
-        ambient_temp_c=req.ambient_temperature
-    )
-    return result
-
-@app.get("/decision/{engine_id}")
-def get_mission_decision(engine_id: str):
-    if not twin_service.last_twin_state:
-        twin_service.process_telemetry_frame(simulator.state)
-    return twin_service.last_twin_state.get("decision", {})
-
-# ==========================================
-# 6. SIMULATION, FAULT INJECTION & REPLAY
-# ==========================================
-@app.post("/api/scenario")
-def trigger_scenario(req: ScenarioRequest):
-    valid_scenarios = [
-        "cruise", "lubrication_degradation", "vibration_bearing",
-        "thermal_overheat", "spark_misfire", "high_altitude_climb"
-    ]
-    if req.scenario not in valid_scenarios:
-        raise HTTPException(status_code=400, detail="Invalid scenario name")
-
-    simulator.set_scenario(req.scenario)
-    log_event(f"Simulation Scenario Activated: {req.scenario.upper()}", "warning", "Simulation")
-    return {"status": "scenario_applied", "activeScenario": req.scenario}
-
-@app.post("/api/mitigate")
-def execute_mitigation():
-    simulator.execute_mitigation()
-    twin_service.process_telemetry_frame(simulator.state)
-    log_event("Closed-Loop Feedback Telecommand Sent to Real UAV Engine", "info", "Telecommand")
-    return {"status": "mitigation_applied", "state": simulator.state}
-
-@app.post("/api/flight-time/reset")
-@app.post("/mission/reset-clock")
-def reset_mission_flight_time(req: Optional[FlightTimeResetRequest] = None):
-    """Resets the mission flight time clock back to 00:00:00 or specified offset."""
-    secs = req.seconds if req else 0
-    simulator.reset_flight_time(secs)
-    twin_service.process_telemetry_frame(simulator.state)
-    log_event(f"Mission Flight Time Reset to {secs}s", "info", "MissionClock")
-    return {
-        "status": "flight_time_reset",
-        "flight_time_seconds": secs,
-        "flight_time_str": twin_service.last_dashboard_view.get("flight_time_str", "00:00:00") if twin_service.last_dashboard_view else "00:00:00"
-    }
-
-
-@app.post("/simulation/start")
-def start_simulation(seed: int = 42):
-    global simulator
-    simulator = AeroEngineSimulator(seed=seed)
-    twin_service.process_telemetry_frame(simulator.state)
-    return {"status": "simulation_started", "seed": seed}
-
-@app.post("/simulation/inject-fault")
-def inject_fault(req: FaultInjectionRequest):
-    inj = simulator.inject_fault(
-        fault=req.fault,
-        severity=req.severity,
-        start_time=req.start_time,
-        progression_rate=req.progression_rate
-    )
-    log_event(f"Progressive Fault Injected: {req.fault} (Severity: {req.severity})", "warning", "FaultInjection")
-    return {"status": "fault_injected", "details": inj, "is_simulated": True}
-
-@app.post("/replay/start")
-@app.post("/replay/resume")
-def start_replay():
-    res = replay_engine.start()
-    log_event("Deterministic Replay Session Started", "info", "ReplayEngine")
-    return res
-
-@app.post("/replay/pause")
-def pause_replay():
-    res = replay_engine.pause()
-    log_event("Deterministic Replay Session Paused", "info", "ReplayEngine")
-    return res
-
-@app.post("/replay/reset")
-def reset_replay():
-    res = replay_engine.reset()
-    log_event("Deterministic Replay Session Reset", "info", "ReplayEngine")
-    return res
-
-@app.get("/replay/state")
-def get_replay_state():
-    return replay_engine.get_state()
-
-@app.get("/api/replay/{id}")
-def get_replay_by_id(id: str):
-    """Returns deterministic replay metadata and current session state."""
-    state = replay_engine.get_state()
-    return {
-        "replay_id": id,
-        "state": state,
-        "frame_count": len(replay_engine.trajectory_buffer),
-        "available_scenarios": ["bearing_degradation", "thermal_overheat", "spark_misfire", "sensor_drift"]
-    }
-
-
-@app.post("/replay/seek")
-def seek_replay(req: ReplaySeekRequest):
-    if req.frame_index is not None:
-        idx = req.frame_index
-    elif req.position is not None and replay_engine.trajectory_buffer:
-        idx = int((req.position / 100.0) * (len(replay_engine.trajectory_buffer) - 1))
-    else:
-        idx = 0
-    replay_engine.current_frame = max(0, min(len(replay_engine.trajectory_buffer) - 1, idx)) if replay_engine.trajectory_buffer else 0
-    return {"status": "seek_applied", "step": replay_engine.current_frame, "frame_index": replay_engine.current_frame}
-
-@app.post("/replay/speed")
-def speed_replay(req: ReplaySpeedRequest):
-    replay_engine.playback_speed = req.speed
-    return {"status": "speed_applied", "playback_speed": replay_engine.playback_speed}
-
-# ==========================================
-# 7. VALIDATION & BASELINE EXPERIMENTS
-# ==========================================
-@app.get("/experiments/baseline-comparison")
-def get_baseline_comparison(seed: int = 42, samples: int = 120):
-    result = experiment_runner.run_baseline_comparison_experiment(seed=seed, n_samples=samples)
-    return result
-
-@app.get("/experiments")
-def list_experiments():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM experiments ORDER BY timestamp DESC")
-    rows = [dict(r) for r in cursor.fetchall()]
-    conn.close()
-    return {"experiments": rows}
-
-@app.get("/experiments/{id}")
-def get_experiment_detail(id: str):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM experiments WHERE experiment_id = ?", (id,))
-    exp = cursor.fetchone()
-    if not exp:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Experiment ID not found")
-    cursor.execute("SELECT * FROM experiment_metrics WHERE experiment_id = ?", (id,))
-    metrics = [dict(r) for r in cursor.fetchall()]
-    conn.close()
-    return {"experiment": dict(exp), "metrics": metrics}
-
-@app.get("/experiments/{id}/metrics")
-def get_experiment_metrics(id: str):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM experiment_metrics WHERE experiment_id = ?", (id,))
-    metrics = [dict(r) for r in cursor.fetchall()]
-    conn.close()
-    return {"experiment_id": id, "metrics": metrics}
-
-# ==========================================
-# 8. EVALUATOR Q&A, VALIDATION & LIMITATIONS API
-# ==========================================
-@app.get("/evaluator/questions")
-@app.get("/api/evaluator/questions")
-def list_evaluator_questions(category: Optional[str] = None):
-    # Deduplicate by question text
-    seen_questions = set()
-    deduped = []
-    for q in EVALUATOR_QUESTIONS.values():
-        if q["id"] not in seen_questions:
-            seen_questions.add(q["id"])
-            if not category or q.get("category") == category:
-                deduped.append(q)
-    return {
-        "total_questions": len(deduped),
-        "questions": deduped
-    }
-
-@app.get("/evaluator/questions/{id}")
-@app.get("/api/evaluator/questions/{id}")
-def get_evaluator_question_by_id(id: str):
-    q = EVALUATOR_QUESTIONS.get(id.upper())
-    if not q:
-        raise HTTPException(status_code=404, detail=f"Evaluator Question '{id}' not found")
-    return q
-
-@app.get("/evaluator/evidence/{id}")
-@app.get("/api/evaluator/evidence/{id}")
-def get_evaluator_evidence(id: str):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM evidence ORDER BY timestamp DESC LIMIT 50")
-    ev_rows = [dict(r) for r in cursor.fetchall()]
-    conn.close()
-    return {
-        "evidence_id": id,
-        "timestamp": time.time(),
-        "recent_evidence_records": ev_rows
-    }
-
-@app.get("/system/limitations")
-@app.get("/api/system/limitations")
-def get_system_limitations():
-    return SYSTEM_LIMITATIONS
-
-@app.get("/validation/metrics")
-@app.get("/api/validation/metrics")
-def get_validation_metrics():
-    """
-    Returns empirical validation metrics comparing AERIS-TWIN against threshold baselines.
-    Never invents unmeasured flight certification claims.
-    """
-    exp_summary = experiment_runner.run_baseline_comparison_experiment(seed=42, n_samples=120)
-    return {
-        "status": "VALIDATED_EMPIRICAL_BENCHMARK",
-        "dataset_name": "UAV-ROT914-SIM-CORPUS-2026.1",
-        "dataset_type": "CALIBRATED_THERMODYNAMIC_SIMULATION",
-        "physical_testbed": "ESP32_MOTOR_PROTOTYPE_01",
-        "evaluation_scope": "120-Trajectory Benchmark Comparison Suite",
-        "benchmark_summary": exp_summary,
-        "model_registry": [
-            {
-                "subsystem": "Aero Engine Thermodynamic Baseline",
-                "model_type": "Mean-Value Physics State Space (Rotax 914 F)",
-                "metrics": {"rmse_rpm": 12.4, "rmse_cht_c": 0.85, "rmse_oil_bar": 0.08}
-            },
-            {
-                "subsystem": "DC Motor Testbed Baseline",
-                "model_type": "Back-EMF Armature & Loss Model",
-                "metrics": {"rmse_current_a": 0.06, "rmse_power_w": 0.42}
-            },
-            {
-                "subsystem": "Anomaly Detection",
-                "model_type": "Physics-Residual Isolation Forest (100 Trees)",
-                "metrics": {"f1_score": 0.942, "precision": 0.961, "recall": 0.924, "false_positive_rate": 0.021}
-            },
-            {
-                "subsystem": "Prognostics RUL",
-                "model_type": "Multi-Subsystem Degradation Velocity (Weibull)",
-                "metrics": {"lead_time_advantage_seconds": 42.3, "coverage_probability": 0.91}
-            }
-        ]
-    }
-
-# ==========================================
-# 9. WEBSOCKET GATEWAY & LIVE TELECOMMANDS
-# ==========================================
+# ==============================================================================
+# 4. WEBSOCKET GATEWAY & TELECOMMANDS
+# ==============================================================================
 @app.websocket("/ws/telemetry")
 async def websocket_telemetry_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -1370,43 +757,34 @@ async def websocket_telemetry_endpoint(websocket: WebSocket):
                     )
                 elif action == "MITIGATE":
                     simulator.execute_mitigation()
-                elif action in ["INGEST_LIVE", "INGEST_HARDWARE"]:
-                    expected_key = os.getenv("AERIS_DEVICE_API_KEY", "").strip()
-                    provided_key = str(msg.get("api_key", "")).strip()
-                    if expected_key and provided_key != expected_key:
-                        log_event("Unauthorized WebSocket hardware telemetry attempt", "warning", "WebSocketAuth")
-                        continue
-                    frame = msg.get("frame", {})
-                    if frame:
-                        if action == "INGEST_HARDWARE" and "source" not in frame:
-                            frame["source"] = "PHYSICAL_SENSOR"
-                        normalized = normalize_telemetry_packet(frame)
-                        live_source.push_frame(normalized)
                 elif action == "REPLAY_START":
                     replay_engine.start()
                 elif action == "REPLAY_PAUSE":
                     replay_engine.pause()
                 elif action == "REPLAY_RESET":
                     replay_engine.reset()
-                elif action == "REPLAY_SPEED":
-                    replay_engine.playback_speed = float(msg.get("speed", 1.0))
-                elif action == "REPLAY_SEEK":
-                    replay_engine.current_step = int(msg.get("step", 0))
-                elif action in ["RESET_FLIGHT_TIME", "RESET_MISSION_CLOCK"]:
-                    secs = int(msg.get("seconds", 0))
-                    simulator.reset_flight_time(secs)
-                    twin_service.process_telemetry_frame(simulator.state)
-                    log_event(f"Mission Flight Time Reset to {secs}s", "info", "MissionClock")
-
-
             except Exception:
                 pass
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-# ─── Mount Built Frontend Static Files (Single-Port Hosting) ──────────────────
+# Static files and frontend SPA mount
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DIST_DIR = os.path.join(_BASE_DIR, "dist")
+_SRC_DIR = os.path.join(_BASE_DIR, "src")
+_INDEX_FILE = os.path.join(_BASE_DIR, "index.html")
+
 if os.path.exists(_DIST_DIR):
     app.mount("/", StaticFiles(directory=_DIST_DIR, html=True), name="static")
+elif os.path.exists(_SRC_DIR) and os.path.exists(_INDEX_FILE):
+    app.mount("/src", StaticFiles(directory=_SRC_DIR), name="src")
 
+    @app.get("/{full_path:path}")
+    async def serve_spa_frontend(request: Request, full_path: str):
+        # Allow API, docs, and websocket endpoints to be handled cleanly
+        if full_path.startswith("api/") or full_path.startswith("ws/") or full_path.startswith("twin/") or full_path.startswith("visualization/") or full_path in ["docs", "openapi.json", "redoc"]:
+            raise HTTPException(status_code=404, detail="Not Found")
+        target_file = os.path.join(_BASE_DIR, full_path)
+        if full_path and os.path.isfile(target_file):
+            return FileResponse(target_file)
+        return FileResponse(_INDEX_FILE)
