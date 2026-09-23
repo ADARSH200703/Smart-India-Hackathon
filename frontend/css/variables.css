@@ -20,11 +20,11 @@
    ========================================================================== */
 :root {
   /* Semantic Core Surfaces */
-  --background: #11161B;
-  --background-secondary: #151B21;
-  --surface: #191F25;
+  --background: #0E1217;
+  --background-secondary: #141A21;
+  --surface: #1B232D;
   --surface-hover: #1E252D;
-  --surface-elevated: #191F25;
+  --surface-elevated: #1F2834;
   --surface-sunken: #11161B;
   --surface-high: #242D37;
 
@@ -33,11 +33,11 @@
   --bg-secondary: var(--background-secondary);
   --bg-card: var(--surface);
   --bg-card-hover: var(--surface-hover);
-  --bg-glass: #161D25;
-  --bg-glass-heavy: #121820;
+  --bg-glass: #1B232D; --bg-glass-heavy: #141A21;
+  --bg-glass: #1B232D; --bg-glass-heavy: #141A21;
 
   /* Semantic Borders & Dividers */
-  --border: #2A3138;
+  --border: #2B3644;
   --border-subtle: rgba(255, 255, 255, 0.05);
   --border-medium: #353D47;
   --border-bright: #3B82F6;
@@ -85,12 +85,12 @@
   --font-display: var(--font-sans);
 
   /* Geometry & Physics */
-  --radius-xs: 0px;
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 3px;
-  --radius-xl: 3px;
-  --radius-full: 4px;
+  
+  
+  
+  
+  
+  
 
   /* Clean Engineering Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -98,9 +98,16 @@
   --shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.65);
   --shadow-hud: 0 12px 36px rgba(0, 0, 0, 0.85);
   --shadow-glow: none;
-  --glow-cyan: none;
-  --glow-green: 0 0 12px rgba(78, 222, 163, 0.25);
-  --glow-amber: 0 0 12px rgba(238, 152, 0, 0.25);
-  --glow-red: 0 0 12px rgba(255, 84, 73, 0.25);
+  
+  
+  
+  
 }
 
+
+  --radius-xs: 0px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 3px;
+  --radius-full: 4px;
