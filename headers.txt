@@ -1,0 +1,34 @@
+// ─── DOM helpers ──────────────────────────────────────────────────────────────
+// ─── Core Systems ────────────────────────────────────────────────────────────
+// ─── Dynamic API & WebSocket Endpoints ─────────────────────────────────────
+// ─── Component Inspector Spec Table (Rotax 914 Aero Piston Architecture) ────
+// ─── 3D Camera Preset Buttons ─────────────────────────────────────────────
+// ─── Render Shaders & Inspection Modes ─────────────────────────────────────
+// ─── Evaluator "Why is this Unhealthy?" Modal ──────────────────────────────
+// ─── 6-Channel Telemetry Field Inspection Modal Handler ──────────────────
+// ─── Unified View Navigation Switcher ───────────────────────────────────────
+// ─── Landing Page Motion & Interaction Engine ──────────────────────────────
+// ─── Client-Side URL Router ────────────────────────────────────────────────
+// ─── Real-Time Mode Switcher (LIVE vs SIMULATION / TEST) ────────────────────
+// ─── Target Evaluation Frequency Rate Selector (1, 5, 10, 20 Hz) ───────────
+// ─── Rolling Window Selector (30s, 60s, 120s) ──────────────────────────────
+// ─── Quick Simulation Test Injections ───────────────────────────────────────
+// ─── Replay Controls ───────────────────────────────────────────────────────
+// ─── AI Latent Space & Sensitivity Slider ─────────────────────────────────
+// ─── SVG Sparkline Generator ──────────────────────────────────────────────
+// ─── Scenario Dropdown ───────────────────────────────────────────────────────
+// ─── Audio Toggle ────────────────────────────────────────────────────────────
+// ─── Pause / Resume Telemetry Stream ─────────────────────────────────────────
+// ─── Mission Clock Reset ───────────────────────────────────────────────────
+// ─── Mitigation Command (Truthful Live vs Simulation Separation) ───────────
+// ─── Keyboard Shortcuts & Modal Dismissals ─────────────────────────────────
+// ─── Export Mission Report ────────────────────────────────────────────────────
+// ─── Export CSV History ───────────────────────────────────────────────────────
+// ─── Trend Arrow Utility ─────────────────────────────────────────────────────
+// ─── Real-Time Stream Performance Metrics & Pipeline Strip Updaters ─────────
+// ─── Hardware View Manager (Physical Gateway & Sensors) ───────────────────
+// ─── Main Telemetry Update Processor (Backend and Fallback) ─────────────────
+// ─── Disconnected / Standby State Renderer ────────────────────────────────
+// ─── Main Telemetry Update Processor ────────────────────────────────────────
+// ─── Toast Notification ───────────────────────────────────────────────────────
+// ─── WebSocket Backend Link ───────────────────────────────────────────────────

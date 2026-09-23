@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AERIS-TWIN | UAV Aero Propulsion Digital Twin &amp; AI Health Platform</title>
+  <meta name="description" content="Physics-informed digital twin and AI diagnostic platform for real-time health monitoring, fault prediction and remaining useful life estimation of MALE UAV aero-piston engines.">
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/navigation.css">
+  <link rel="stylesheet" href="./css/dashboard.css">
+  <link rel="stylesheet" href="./css/telemetry.css">
+  <link rel="stylesheet" href="./css/charts.css">
+  <link rel="stylesheet" href="./css/digital-twin.css">
+  <link rel="stylesheet" href="./css/responsive.css">
+  <!-- Google Fonts: Orbitron, Inter, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Material Symbols -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+  <!-- ESM Import Map for Three.js and Chart.js -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/examples/jsm/controls/OrbitControls.js": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js",
+      "three/": "https://cdn.jsdelivr.net/npm/three@0.170.0/",
+      "chart.js": "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- ==========================================================================
+       AERIS-TWIN LANDING PAGE ROOT
+       ========================================================================== -->
+  <div id="landing-page-root">
+    <!-- Ambient Cursor-Follower Glow -->
+    <div class="landing-ambient-glow" id="landing-cursor-glow" aria-hidden="true"></div>
+
+    <!-- Landing Header Navigation -->
+    <header class="landing-header">
+      <div class="landing-container">
+        <nav class="landing-nav">
+          <a href="/" class="landing-brand" data-route="/">
+            <svg class="landing-brand-logo" viewBox="0 0 100 60">
+              <path d="M50 5 L55 25 L95 38 L95 44 L56 40 L54 55 L65 58 L65 60 L35 60 L35 58 L46 55 L44 40 L5 44 L5 38 L45 25 Z" fill="currentColor"/>
+            </svg>
+            <div>
+              <div class="landing-brand-title">AERIS-TWIN</div>
+              <div class="landing-brand-sub">Aero Engine Reliability &amp; Intelligence System</div>
+            </div>
+          </a>
+
+          <ul class="landing-nav-links">
+            <li><a href="#pipeline-section" class="landing-nav-link">Pipeline</a></li>
+            <li><a href="#capabilities-section" class="landing-nav-link">Capabilities</a></li>
+            <li><a href="#impact-section" class="landing-nav-link">Impact</a></li>
+          </ul>
+
+          <div class="landing-nav-actions">
+            <a href="/pipeline" class="landing-btn landing-btn-secondary" data-route="/pipeline">
+              <span class="material-symbols-outlined" style="font-size:16px;">account_tree</span>
+              <span>View Architecture</span>
+            </a>
+            <a href="/overview" class="landing-btn landing-btn-primary" data-route="/overview">
+              <span>Explore the Digital Twin</span>
+              <span class="material-symbols-outlined" style="font-size:16px;">arrow_forward</span>
+            </a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Landing Main Content -->
+    <main>
+      <!-- ====================================================================
+           SECTION 1 — HERO
+           ==================================================================== -->
+      <section class="landing-hero" id="landing-hero-section">
+        <div class="landing-container">
+          <div class="landing-hero-grid">
+            <div class="landing-hero-content landing-reveal">
+              <div class="landing-hero-badge">
+                <span class="lp-badge-dot" aria-hidden="true"></span>
+                <span>AEROSPACE PROPULSION INTELLIGENCE &nbsp;&middot;&nbsp; SIH 2026</span>
+              </div>
+
+              <h1 class="landing-hero-title">
+                AERIS-TWIN <br>
+                <span class="hero-tagline">Predict the Engine. <br><span class="highlight-cyan">Before It Fails.</span></span>
+              </h1>
+
+              <p class="landing-hero-subtitle">
+                An AI-powered Digital Twin for real-time health monitoring and predictive maintenance of aero-piston engines.
+              </p>
+
+              <div class="landing-hero-buttons">
+                <a href="/overview" class="landing-btn landing-btn-primary landing-btn-lg" data-route="/overview">
+                  <span>Explore the Digital Twin</span>
+                  <span class="material-symbols-outlined" style="font-size: 18px;">arrow_forward</span>
+                </a>
+                <a href="/pipeline" class="landing-btn landing-btn-secondary landing-btn-lg" data-route="/pipeline">
+                  <span class="material-symbols-outlined" style="font-size: 18px;">account_tree</span>
+                  <span>View Architecture</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Hero Right — Aerospace Engine Digital Twin Visual -->
+            <div class="landing-hero-visual-wrap landing-reveal stagger-2">
+              <div class="hero-engine-frame">
+                <img 
+                  src="./assets/aeris_digital_twin_hero.jpg" 
+                  alt="AERIS-TWIN Aero Propulsion Engine Digital Twin Visual Cutaway" 
+                  class="hero-engine-img"
+                  loading="eager"
+                />
+                <div class="hero-engine-scanline" aria-hidden="true"></div>
+                
+                <!-- Floating Real-Time Aerospace Telemetry Overlays -->
+                <div class="hero-overlay-tag hero-overlay-tr">
+                  <span class="live-pulse-dot" style="width: 6px; height: 6px;"></span>
+                  <span>HEALTH INDEX 98.4%</span>
+                </div>
+                <div class="hero-overlay-tag hero-overlay-bl">
+                  <span class="material-symbols-outlined" style="font-size: 13px; color: var(--primary);">tune</span>
+                  <span>PHYSICS RESIDUAL &Delta; &middot; &sigma;-NORMALIZED</span>
+                </div>
+                <div class="hero-overlay-tag hero-overlay-br">
+                  <span class="material-symbols-outlined" style="font-size: 13px; color: var(--secondary);">verified_user</span>
+                  <span>SENSOR TRUST 0.99</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SECTION 2 — CORE PIPELINE
+           ==================================================================== -->
+      <section class="landing-section" id="pipeline-section">
+        <div class="landing-container">
+          <div class="landing-section-header landing-reveal">
+            <span class="landing-section-tag">INTELLIGENCE PIPELINE</span>
+            <h2 class="landing-section-title">One Continuous Pipeline</h2>
+            <p class="landing-section-desc">
+              From engine telemetry to predictive insight through one continuous intelligence pipeline.
+            </p>
+          </div>
+
+          <div class="landing-core-pipeline-flow landing-reveal stagger-2">
+            <div class="pipeline-flow-card">
+              <div class="pipeline-card-step">01</div>
+              <div class="pipeline-card-icon-wrap">
+                <span class="material-symbols-outlined">sensors</span>
+              </div>
+              <div class="pipeline-card-name">REAL-TIME TELEMETRY</div>
+            </div>
+
+            <div class="pipeline-flow-arrow" aria-hidden="true">
+              <span class="material-symbols-outlined">east</span>
+            </div>
+
+            <div class="pipeline-flow-card">
+              <div class="pipeline-card-step">02</div>
+              <div class="pipeline-card-icon-wrap">
+                <span class="material-symbols-outlined">deployed_code</span>
+              </div>
+              <div class="pipeline-card-name">DIGITAL TWIN</div>
+            </div>
+
+            <div class="pipeline-flow-arrow" aria-hidden="true">
+              <span class="material-symbols-outlined">east</span>
+            </div>
+
+            <div class="pipeline-flow-card">
+              <div class="pipeline-card-step">03</div>
+              <div class="pipeline-card-icon-wrap">
+                <span class="material-symbols-outlined">psychology</span>
+              </div>
+              <div class="pipeline-card-name">AI PROGNOSTICS</div>
+            </div>
+
+            <div class="pipeline-flow-arrow" aria-hidden="true">
+              <span class="material-symbols-outlined">east</span>
+            </div>
+
+            <div class="pipeline-flow-card pipeline-flow-card-accent">
+              <div class="pipeline-card-step">04</div>
+              <div class="pipeline-card-icon-wrap">
+                <span class="material-symbols-outlined">shield</span>
+              </div>
+              <div class="pipeline-card-name">ACTIONABLE INSIGHT</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SECTION 3 — THREE CORE CAPABILITIES
+           ==================================================================== -->
+      <section class="landing-section" id="capabilities-section">
+        <div class="landing-container">
+          <div class="landing-section-header landing-reveal">
+            <span class="landing-section-tag">CAPABILITIES</span>
+            <h2 class="landing-section-title">Three Core Pillars</h2>
+          </div>
+
+          <div class="landing-capabilities-grid lp-cap-3">
+            <div class="capability-card landing-reveal stagger-1" tabindex="0">
+              <div class="capability-card-header">
+                <span class="capability-num">01 &mdash; SEE</span>
+                <div class="capability-icon-wrap">
+                  <span class="material-symbols-outlined">visibility</span>
+                </div>
+              </div>
+              <h3 class="capability-card-title">Real-Time Engine State</h3>
+              <p class="capability-card-desc">Monitor critical engine parameters as they change.</p>
+            </div>
+
+            <div class="capability-card landing-reveal stagger-2" tabindex="0">
+              <div class="capability-card-header">
+                <span class="capability-num">02 &mdash; PREDICT</span>
+                <div class="capability-icon-wrap">
+                  <span class="material-symbols-outlined">psychology</span>
+                </div>
+              </div>
+              <h3 class="capability-card-title">AI-Powered Prognostics</h3>
+              <p class="capability-card-desc">Detect anomalies, identify emerging faults and track degradation.</p>
+            </div>
+
+            <div class="capability-card landing-reveal stagger-3" tabindex="0">
+              <div class="capability-card-header">
+                <span class="capability-num">03 &mdash; ACT</span>
+                <div class="capability-icon-wrap">
+                  <span class="material-symbols-outlined">bolt</span>
+                </div>
+              </div>
+              <h3 class="capability-card-title">Maintenance Intelligence</h3>
+              <p class="capability-card-desc">Turn engine health data into clear maintenance and mission decisions.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SECTION 4 — IMPACT STATEMENT
+           ==================================================================== -->
+      <section class="landing-section landing-impact-section" id="impact-section">
+        <div class="landing-container">
+          <div class="landing-impact-box landing-reveal">
+            <h2 class="landing-impact-quote">
+              &ldquo;Don&rsquo;t wait for failure.<br>
+              <span class="highlight-cyan">Understand degradation while it is happening.&rdquo;</span>
+            </h2>
+            <div class="landing-impact-keywords">
+              <span class="impact-keyword">REAL-TIME</span>
+              <span class="impact-keyword-sep" aria-hidden="true">&bull;</span>
+              <span class="impact-keyword">PHYSICS-INFORMED</span>
+              <span class="impact-keyword-sep" aria-hidden="true">&bull;</span>
+              <span class="impact-keyword">AI-ASSISTED</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SECTION 5 — FINAL CTA
+           ==================================================================== -->
+      <section class="landing-section landing-final-cta-section" id="final-cta-section">
+        <div class="landing-container">
+          <div class="landing-cta-banner landing-reveal">
+            <h2 class="landing-cta-title">The engine is telling you something.</h2>
+            <p class="landing-cta-desc">
+              AERIS-TWIN helps you understand it.
+            </p>
+            <div class="lp-cta-actions">
+              <a href="/overview" class="landing-btn landing-btn-primary landing-btn-lg" data-route="/overview">
+                <span>Enter the Digital Twin</span>
+                <span class="material-symbols-outlined" style="font-size: 20px;">arrow_forward</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Landing Footer & Safety Notice -->
+    <footer class="landing-footer">
+      <div class="landing-container">
+        <div class="landing-footer-grid">
+          <div class="landing-footer-left">
+            <span class="landing-footer-title">AERIS-TWIN</span>
+            <span class="landing-footer-meta">Aero Engine Reliability &amp; Intelligence System &nbsp;&middot;&nbsp; SIH 2026 &nbsp;&middot;&nbsp; DRDO SIH26054</span>
+          </div>
+          <div class="lp-footer-disclaimer">
+            <strong>Notice:</strong> AERIS-TWIN is a research and technology demonstrator. It is not flight-qualified or certified for autonomous flight-critical decision-making.
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+
+  <!-- ==========================================================================
+       DASHBOARD ROOT (Streamlined Operator Ground Station & Modular Views)
+       ========================================================================== -->
+  <div id="dashboard-root" style="display: none;">
+    <!-- Top Avionics Flight Command Bar -->
+    <header class="app-header">
+      <div class="header-top">
+        <div class="header-left">
+          <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" title="Toggle Navigation Drawer">
+            <span class="material-symbols-outlined">menu_open</span>
+          </button>
+          <div class="uav-logo-badge" data-route="/" title="Return to AERIS-TWIN Home" style="cursor: pointer;">
+            <svg class="uav-silhouette" viewBox="0 0 100 60">
+              <path d="M50 5 L55 25 L95 38 L95 44 L56 40 L54 55 L65 58 L65 60 L35 60 L35 58 L46 55 L44 40 L5 44 L5 38 L45 25 Z" fill="currentColor"/>
+            </svg>
+            <div>
+              <div class="brand-title">AERIS-TWIN</div>
+              <div class="brand-subtitle">MALE UAV PROPULSION GCS</div>
+            </div>
+          </div>
+
+          <!-- Mode Switcher: LIVE MODE vs SIMULATION/TEST MODE -->
+          <div class="mode-switch-container">
+            <button id="btn-mode-live" class="mode-btn active live" title="Continuous Real-Time Telemetry Evaluation Mode">
+              <span class="live-pulse-dot" style="width: 6px; height: 6px;"></span>
+              <span>LIVE</span>
+            </button>
+            <button id="btn-mode-sim" class="mode-btn" title="Synthetic Telemetry &amp; Failure Injection Test Mode">
+              <span class="material-symbols-outlined" style="font-size: 13px;">science</span>
+              <span>SIM / TEST</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="header-center">
+          <!-- Live Stream Real-Time Readout Pill -->
+          <div class="telemetry-stream-pill" id="header-stream-pill">
+            <span class="live-pulse-dot" id="hdr-pulse-dot"></span>
+            <span id="hdr-mode-tag" style="font-weight: 700; color: var(--status-normal);">LIVE ●</span>
+            <span class="pill-divider">|</span>
+            <span>Update: <strong id="hdr-last-update" style="color: #fff;">--:--:--</strong></span>
+            <span class="pill-divider">|</span>
+            <span>Age: <strong id="hdr-data-age" style="color: var(--accent-cyan);">-- ms</strong></span>
+            <span class="pill-divider">|</span>
+            <span>Latency: <strong id="hdr-latency" style="color: var(--secondary);">-- ms</strong></span>
+            <span class="pill-divider">|</span>
+            <button class="mission-clock-display" id="header-mission-clock" title="Click to Reset Mission Flight Time" style="background: none; border: none; cursor: pointer; color: inherit; font-family: inherit; font-size: inherit; font-weight: inherit; padding: 0;">T+ 00:00:00</button>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <!-- Frequency Target Selector -->
+          <div class="rate-btn-group" title="Target Evaluation Frequency">
+            <button class="rate-btn" data-rate="1">1Hz</button>
+            <button class="rate-btn" data-rate="5">5Hz</button>
+            <button class="rate-btn active" data-rate="10">10Hz</button>
+            <button class="rate-btn" data-rate="20">20Hz</button>
+          </div>
+
+          <div class="scenario-picker-box" id="scenario-picker-container" style="display: none;">
+            <span class="material-symbols-outlined" style="font-size: 15px; color: var(--accent-cyan);">tune</span>
+            <select id="scenario-dropdown" class="scenario-select" title="Simulate flight condition / anomaly preset (Test Mode)">
+              <option value="cruise">[SIM] Normal Cruise (Nominal Power)</option>
+              <option value="lubrication_degradation">[SIM] Lubrication Pressure Loss</option>
+              <option value="vibration_bearing">[SIM] Crankshaft Bearing Wear</option>
+              <option value="thermal_overheat">[SIM] Cylinder Head Overheat</option>
+              <option value="spark_misfire">[SIM] Spark Plug Ignition Misfire</option>
+              <option value="high_altitude_climb">[SIM] Max Power Climb (High Altitude)</option>
+            </select>
+          </div>
+
+          <div class="header-quick-controls">
+            <button id="audio-toggle-btn" class="hud-btn" title="Toggle Synthetic Audio Avionics">
+              <div class="audio-equalizer" id="audio-eq-bars">
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+              </div>
+              <span class="material-symbols-outlined" id="audio-icon">volume_off</span>
+              <span id="audio-text">Audio: Off</span>
+            </button>
+            <button id="pause-sim-btn" class="hud-btn" title="Pause / Resume Live Telemetry Stream">
+              <span class="material-symbols-outlined" id="sim-icon">play_arrow</span>
+              <span id="sim-text">Running</span>
+            </button>
+            <button id="quick-mitigate-btn" class="hud-btn hud-btn-danger" title="Trigger Automated In-Flight Mitigation">
+              <span class="material-symbols-outlined">gpp_maybe</span>
+              <span>Mitigate</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- App Workspace Body -->
+    <div class="app-container">
+      <!-- Left Navigation Drawer -->
+      <aside class="sidebar" id="app-sidebar">
+        <div class="sidebar-top">
+          <div class="sidebar-section-label">MISSION MODULES</div>
+          <ul class="sidebar-nav">
+            <li class="nav-item active" data-view="dashboard" title="Operator Ground Station Dashboard">
+              <span class="material-symbols-outlined">dashboard</span>
+              <span class="nav-label"><span style="color: var(--primary); font-family: var(--font-mono); font-size: 0.72rem; margin-right: 4px;">01 //</span> Dashboard</span>
+              <span class="nav-badge alert-count" id="sidebar-alert-badge">0</span>
+            </li>
+            <li class="nav-item" data-view="threed" title="Interactive 3D Digital Twin Engine Model">
+              <span class="material-symbols-outlined">inventory_2</span>
+              <span class="nav-label"><span style="color: var(--primary); font-family: var(--font-mono); font-size: 0.72rem; margin-right: 4px;">02 //</span> Digital Twin</span>
+            </li>
+            <li class="nav-item" data-view="realtime" title="Real-Time 6-Channel Telemetry Monitor">
+              <span class="material-symbols-outlined">show_chart</span>
+              <span class="nav-label"><span style="color: var(--primary); font-family: var(--font-mono); font-size: 0.72rem; margin-right: 4px;">03 //</span> Telemetry</span>
+            </li>
+            <li class="nav-item" data-view="hardware" title="Physical Hardware Gateway & Sensor Rig Bridge">
+              <span class="material-symbols-outlined">developer_board</span>
+              <span class="nav-label"><span style="color: var(--primary); font-family: var(--font-mono); font-size: 0.72rem; margin-right: 4px;">04 //</span> Hardware</span>
+              <span class="nav-badge" id="sidebar-hardware-badge" style="background: rgba(148, 163, 184, 0.15); color: var(--text-dim); font-size: 0.65rem; border: 1px solid var(--border-subtle); padding: 1px 5px; border-radius: 3px;">●</span>
+            </li>
+            <li class="nav-item" data-view="ai-lab" title="AI &amp; Machine Learning Diagnostics Lab">
+              <span class="material-symbols-outlined">psychology</span>
+              <span class="nav-label"><span style="color: var(--primary); font-family: var(--font-mono); font-size: 0.72rem; margin-right: 4px;">05 //</span> AI Prognostics</span>
+            </li>
+            <li class="nav-item" data-view="history" title="Telemetry History, Event Timeline &amp; Replay">
+              <span class="material-symbols-outlined">history</span>
+              <span class="nav-label"><span style="color: var(--primary); font-family: var(--font-mono); font-size: 0.72rem; margin-right: 4px;">06 //</span> Replay</span>
+            </li>
+            <li class="nav-item" data-view="pipeline" title="End-to-End System Architecture Pipeline">
+              <span class="material-symbols-outlined">hub</span>
+              <span class="nav-label"><span style="color: var(--primary); font-family: var(--font-mono); font-size: 0.72rem; margin-right: 4px;">07 //</span> System</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="status-indicator">
+            <div class="status-dot" id="ws-status-dot"></div>
+            <span id="comm-link-status" class="nav-label">Live Backend</span>
+          </div>
+          <div class="sidebar-meta-info">
+            <div>Target Rate: <span id="sb-target-rate" style="color: var(--accent-cyan);">10 Hz</span></div>
+            <div>Backend: <span id="backend-status-text" style="color: var(--status-normal);">FastAPI / WS</span></div>
+            <div>Mode: <span id="sb-mode-badge" style="color: var(--status-normal); font-weight:700;">LIVE</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Dynamic Views Container -->
+      <main class="main-view-container">
+
+        <!-- ================= VIEW 1: OPERATOR GROUND STATION DASHBOARD ================= -->
+        <!-- INJECTED_view-dashboard -->
+
+
+        <!-- ================= VIEW 2: FULL 6-STAGE SYSTEM ARCHITECTURE ================= -->
+        <!-- INJECTED_view-pipeline -->
+
+        <!-- ================= VIEW 3: 3D DIGITAL TWIN UAV & AERO ENGINE ================= -->
+        <!-- INJECTED_view-threed -->
+
+        <!-- ================= VIEW 4: AI & ML PROGNOSTICS LAB ================= -->
+        <!-- INJECTED_view-ai-lab -->
+
+        <!-- ================= VIEW 5: MISSION ANALYTICS ================= -->
+        <!-- INJECTED_view-mission -->
+
+        <!-- ================= VIEW 6: REAL-TIME 6-CHANNEL MONITOR ================= -->
+        <!-- INJECTED_view-realtime -->
+
+        <!-- ================= VIEW 7: HISTORY & LOGS ================= -->
+        <!-- INJECTED_view-history -->
+
+        <!-- ================= VIEW 8: PHYSICAL HARDWARE CONNECTION & TELEMETRY GATEWAY ================= -->
+        <!-- INJECTED_view-hardware -->
+
+      </main>
+    </div>
+
+    <!-- Bottom Footer Quote & Taglines -->
+    <footer class="app-footer">
+      <div class="footer-quote">
+        "Physics-informed digital twin and AI health monitoring for aero-piston engines in MALE UAV platforms."
+      </div>
+      <div class="footer-pills">
+        <span>SMARTER MONITORING</span>
+        <span>&bull;</span>
+        <span>EARLY DETECTION</span>
+        <span>&bull;</span>
+        <span>EXPLAINABLE EVIDENCE</span>
+        <span>&bull;</span>
+        <span>MISSION RELIABILITY</span>
+      </div>
+    </footer>
+  </div> <!-- /#dashboard-root -->
+
+
+  <!-- ==========================================================================
+       MODALS & OVERLAYS (Intact IDs & Event Bindings)
+       ========================================================================== -->
+
+  <!-- Evaluator "Why is this Unhealthy?" & Sensor Channel Inspection Modal -->
+  <div id="why-unhealthy-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card" style="max-width: 650px;">
+      <div class="panel-header">
+        <div>
+          <span class="panel-title" style="font-size: 1.15rem;"><span class="material-symbols-outlined" style="color: var(--accent-cyan);">biotech</span> EVIDENCE &amp; DIAGNOSTIC REASONING</span>
+          <div style="font-size: 0.72rem; color: var(--text-muted);">Root Cause Traceability &amp; Multi-Perspective Evidence Chain</div>
+        </div>
+        <button id="btn-close-why-modal" class="hud-mini-btn"><span class="material-symbols-outlined">close</span></button>
+      </div>
+
+      <div style="margin: 0.75rem 0; padding: 0.75rem; background: rgba(0, 0, 0, 0.4); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+        <div style="font-size: 0.95rem; font-weight: 700; color: #fff;" id="modal-component-title">Rotax 914 Engine Core</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);" id="modal-component-sub">Subsystem: Powerplant &middot; Evaluated at 10Hz</div>
+      </div>
+
+      <div class="evidence-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.75rem;">
+        <div class="spec-box">
+          <span class="spec-box-label">Measured Value</span>
+          <span class="spec-box-val" id="modal-measured-val">1.60 mm/s</span>
+        </div>
+        <div class="spec-box">
+          <span class="spec-box-label">Physics Expected Baseline</span>
+          <span class="spec-box-val" id="modal-expected-val">1.50 mm/s</span>
+        </div>
+        <div class="spec-box">
+          <span class="spec-box-label">Normalized Residual (z-score)</span>
+          <span class="spec-box-val" id="modal-residual-val" style="color: var(--status-normal);">+0.12 σ</span>
+        </div>
+        <div class="spec-box">
+          <span class="spec-box-label">Residual Slope (Trend)</span>
+          <span class="spec-box-val" id="modal-slope-val">0.0001 /s (STABLE)</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 0.75rem;">
+        <div style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 0.3rem;">Traceable Subsystem Evidence:</div>
+        <ul class="action-list" id="modal-evidence-list" style="max-height: 140px; overflow-y: auto;">
+          <li>Physics Model: Mean-value thermodynamic expectation corroboration</li>
+          <li>Sensor Trust Engine: Transducer operating in nominal calibration boundary (100% trust)</li>
+          <li>Isolation Forest: Score within nominal cluster</li>
+        </ul>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--text-dim); border-top: 1px solid var(--border-subtle); padding-top: 0.6rem;">
+        <span>Model: <strong style="color: var(--text-muted);" id="modal-model-ver">AERIS-MV-AeroPiston-v1.8</strong></span>
+        <span>Confidence: <strong style="color: var(--accent-cyan);" id="modal-conf-val">94%</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Critical Alert Modal -->
+  <div id="critical-alert-modal" class="modal-overlay" style="display: none; backdrop-filter: blur(16px); background: rgba(5, 10, 20, 0.85); z-index: 9999;">
+    <div class="modal-card" style="border: 1px solid var(--status-critical); box-shadow: 0 0 40px rgba(239,68,68,0.2); max-width: 450px;">
+      
+      <!-- Header -->
+      <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem; text-align: center;">
+        <span style="font-family: var(--font-tech); font-weight: 800; font-size: 1.1rem; letter-spacing: 2px;">UAV ENGINE DIGITAL TWIN</span>
+      </div>
+
+      <!-- Health Row -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <span style="font-family: var(--font-tech); font-size: 0.9rem; color: var(--text-dim);">ENGINE HEALTH</span>
+        <strong style="font-size: 1.1rem;" id="alert-health-val">87% <span style="color:var(--status-normal);">🟢</span></strong>
+      </div>
+
+      <!-- Telemetry Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1.5rem; font-family: var(--font-mono); font-size: 0.85rem;">
+        <div style="color: var(--text-dim);">RPM</div> <div id="alert-rpm-val" style="text-align: right; font-weight: 700;">5021</div>
+        <div style="color: var(--text-dim);">Temperature</div> <div id="alert-temp-val" style="text-align: right; font-weight: 700;">184°C</div>
+        <div style="color: var(--text-dim);">Engine Load</div> <div id="alert-load-val" style="text-align: right; font-weight: 700;">64%</div>
+        <div style="color: var(--text-dim);">Oil Pressure</div> <div id="alert-oil-val" style="text-align: right; font-weight: 700;">4.8 Bar</div>
+        <div style="color: var(--text-dim);">Fuel Flow</div> <div id="alert-fuel-val" style="text-align: right; font-weight: 700;">21.4 L/h</div>
+        <div style="color: var(--text-dim);">Vibration</div> <div id="alert-vib-val" style="text-align: right; font-weight: 700; color: var(--status-critical);">HIGH</div>
+      </div>
+
+      <!-- Alert Details -->
+      <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--status-critical); padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
+        <div style="color: var(--status-critical); font-family: var(--font-tech); font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+          <span class="material-symbols-outlined">warning</span> ALERT
+        </div>
+        <div id="alert-desc" style="font-weight: 600; margin-bottom: 1rem;">Increasing vibration trend detected</div>
+        
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; font-family: var(--font-mono); font-size: 0.85rem;">
+          <div style="color: var(--text-dim);">Predicted fault:</div> <div id="alert-fault-val" style="font-weight: 700;">Bearing Degradation</div>
+          <div style="color: var(--text-dim);">Probability:</div> <div id="alert-prob-val" style="font-weight: 700; color: var(--status-critical);">78%</div>
+          <div style="color: var(--text-dim);">Estimated RUL:</div> <div id="alert-rul-val" style="font-weight: 700;">94 hrs</div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <button id="alert-btn-replay" class="hud-btn" style="justify-content: center;">MISSION REPLAY</button>
+        <button id="alert-btn-sim" class="hud-btn" style="justify-content: center; background: rgba(239, 68, 68, 0.15); border-color: var(--status-critical); color: var(--status-critical);">SIMULATOR</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Floating Toast Notifications -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Main JavaScript Orchestrator -->
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

@@ -26,7 +26,7 @@ from .simulation.replay_engine import ReplayEngine
 from .simulation.sources import (
     LiveStreamSource, SimulationSource, FileReplaySource, MAVLinkSource
 )
-from .twin_service import TwinUpdateService
+from .services.twin_service import TwinUpdateService
 from .validation.experiment_runner import ExperimentRunner
 from .evaluator.questions_registry import EVALUATOR_QUESTIONS
 from .evaluator.limitations import SYSTEM_LIMITATIONS

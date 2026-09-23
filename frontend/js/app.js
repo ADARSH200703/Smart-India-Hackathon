@@ -1,10 +1,19 @@
-import { EngineSimulator }  from './engineSimulator.js';
-import { AIPredictor }      from './aiPredictor.js';
-import { ChartsManager, AITrendChartManager } from './chartsManager.js';
-import { AudioManager }     from './audioManager.js';
-import { ThreeDigitalTwin } from './threeDigitalTwin.js';
-import { RealtimeMonitor }  from './realtimeMonitor.js';
-import { HistoryLogs }      from './historyLogs.js';
+
+import { dashboardHtml } from './views/dashboard-html.js';
+import { pipelineHtml } from './views/pipeline-html.js';
+import { threedHtml } from './views/threed-html.js';
+import { ai_labHtml } from './views/ai-lab-html.js';
+import { missionHtml } from './views/mission-html.js';
+import { realtimeHtml } from './views/realtime-html.js';
+import { historyHtml } from './views/history-html.js';
+import { hardwareHtml } from './views/hardware-html.js';
+import { EngineSimulator }  from './demo/engineSimulator.js';
+import { AIPredictor }      from './services/aiPredictor.js';
+import { ChartsManager, AITrendChartManager } from './charts/chart-manager.js';
+import { AudioManager }     from './services/audioManager.js';
+import { ThreeDigitalTwin } from './digital-twin/scene.js';
+import { RealtimeMonitor }  from './telemetry/realtimeMonitor.js';
+import { HistoryLogs }      from './views/historyLogs.js';
 
 // ─── DOM helpers ──────────────────────────────────────────────────────────────
 const $    = id   => document.getElementById(id);
@@ -14,6 +23,21 @@ const setCss   = (id, prop, val) => { const el = $(id); if (el) el.style[prop] =
 const setAttr  = (id, attr, val) => { const el = $(id); if (el) el.setAttribute(attr, val); };
 
 document.addEventListener('DOMContentLoaded', () => {
+
+  // INJECT HTML VIEWS
+  const injectHtml = (id, html) => {
+    const el = document.body.innerHTML;
+    document.body.innerHTML = el.replace('<!-- INJECTED_' + id + ' -->', html);
+  };
+  injectHtml('view-dashboard', dashboardHtml);
+  injectHtml('view-pipeline', pipelineHtml);
+  injectHtml('view-threed', threedHtml);
+  injectHtml('view-ai-lab', ai_labHtml);
+  injectHtml('view-mission', missionHtml);
+  injectHtml('view-realtime', realtimeHtml);
+  injectHtml('view-history', historyHtml);
+  injectHtml('view-hardware', hardwareHtml);
+
 
   // ─── Core Systems ────────────────────────────────────────────────────────────
   const sim   = new EngineSimulator();
