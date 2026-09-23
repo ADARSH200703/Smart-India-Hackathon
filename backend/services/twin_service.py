@@ -9,22 +9,22 @@ import time
 from typing import Dict, Any, List, Optional
 from collections import deque
 
-from .physics.aero_engine_model import AeroPistonPhysicsModel
-from .physics.motor_prototype_model import MotorPrototypePhysicsModel
-from .physics.residual_engine import ResidualEngine
-from .intelligence.sensor_trust import SensorTrustEngine
-from .intelligence.anomaly_detector import EngineAnomalyDetector
-from .intelligence.fault_classifier import EngineFaultClassifier
-from .intelligence.consensus_engine import TwinConsensusEngine
-from .intelligence.degradation_model import EngineDegradationModel
-from .intelligence.rul_engine import EngineRULEngine
-from .intelligence.alert_engine import RealtimeAlertEngine
-from .mission.mission_risk import MissionRiskEngine
-from .mission.what_if_engine import WhatIfSimulationEngine
-from .mission.decision_engine import MissionDecisionEngine
-from .simulation.mavlink_adapter import TelemetryGatewayAdapter
-from .database import log_telemetry_packet, log_twin_execution, log_event
-from .models.twin_state import DigitalTwinState, DashboardView, SubState
+from ..physics.aero_engine_model import AeroPistonPhysicsModel
+from ..physics.motor_prototype_model import MotorPrototypePhysicsModel
+from ..physics.residual_engine import ResidualEngine
+from ..intelligence.sensor_trust import SensorTrustEngine
+from ..intelligence.anomaly_detector import EngineAnomalyDetector
+from ..intelligence.fault_classifier import EngineFaultClassifier
+from ..intelligence.consensus_engine import TwinConsensusEngine
+from ..intelligence.degradation_model import EngineDegradationModel
+from ..intelligence.rul_engine import EngineRULEngine
+from ..intelligence.alert_engine import RealtimeAlertEngine
+from ..mission.mission_risk import MissionRiskEngine
+from ..mission.what_if_engine import WhatIfSimulationEngine
+from ..mission.decision_engine import MissionDecisionEngine
+from ..simulation.mavlink_adapter import TelemetryGatewayAdapter
+from ..database import log_telemetry_packet, log_twin_execution, log_event
+from ..models.twin_state import DigitalTwinState, DashboardView, SubState
 
 class TwinUpdateService:
     def __init__(self):

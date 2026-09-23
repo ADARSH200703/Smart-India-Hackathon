@@ -9,7 +9,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .header-top {
@@ -106,7 +106,7 @@
   height: 7px;
   background: var(--success);
   border-radius: 50%;
-  box-shadow: 0 0 6px var(--success);
+  box-shadow: none;
   animation: studioPulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
 }
 
@@ -404,13 +404,13 @@
   height: 8px;
   border-radius: 50%;
   background: var(--success);
-  box-shadow: 0 0 6px var(--success);
+  box-shadow: none;
   animation: dotPulse 2s ease-in-out infinite;
 }
 
 @keyframes dotPulse {
-  0%, 100% { box-shadow: 0 0 4px var(--success); }
-  50%       { box-shadow: 0 0 10px var(--success); }
+  0%, 100% { box-shadow: none; }
+  50%       { box-shadow: none; }
 }
 
 .sidebar-meta-info {

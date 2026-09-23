@@ -87,7 +87,7 @@
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   transition: border-color 0.15s ease;
 }
 
@@ -217,14 +217,14 @@
   background: rgba(34, 197, 94, 0.15);
   color: var(--status-normal);
   border: 1px solid rgba(34, 197, 94, 0.4);
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.2);
+  box-shadow: none;
 }
 
 .mode-btn.active.sim {
   background: rgba(245, 158, 11, 0.15);
   color: var(--status-warning);
   border: 1px solid rgba(245, 158, 11, 0.4);
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+  box-shadow: none;
 }
 
 .live-not-connected-banner {
@@ -319,7 +319,7 @@
   background: rgba(56, 189, 248, 0.15);
   border-color: var(--accent-cyan);
   color: var(--accent-cyan);
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+  box-shadow: none;
 }
 
 /* Stream Metrics Grid */

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap');
 
 
 /* ==========================================================================
@@ -10,7 +10,7 @@
      - Elevated / Inner Box:   #1D2025
      - Pills / Subtle Borders: #272A30
      - High Surface:           #32353B
-     - Primary Cyan:           #4CD7F6
+     - Primary Cyan:           #3B82F6
      - Secondary Emerald:      #4EDEA3
      - Warning Amber:          #EE9800
      - Alert Coral / Red:      #FF5449
@@ -20,37 +20,37 @@
    ========================================================================== */
 :root {
   /* Semantic Core Surfaces */
-  --background: #0B0E13;
-  --background-secondary: #111419;
-  --surface: #191C21;
-  --surface-hover: #22262C;
-  --surface-elevated: #1D2025;
-  --surface-sunken: #0B0E13;
-  --surface-high: #32353B;
+  --background: #10151B;
+  --background-secondary: #121820;
+  --surface: #161D25;
+  --surface-hover: #1A222C;
+  --surface-elevated: #1A222C;
+  --surface-sunken: #10151B;
+  --surface-high: #1E2733;
 
   /* Backward Compatibility Aliases */
   --bg-primary: var(--background);
   --bg-secondary: var(--background-secondary);
   --bg-card: var(--surface);
   --bg-card-hover: var(--surface-hover);
-  --bg-glass: rgba(25, 28, 33, 0.85);
-  --bg-glass-heavy: rgba(17, 20, 25, 0.95);
+  --bg-glass: #161D25;
+  --bg-glass-heavy: #121820;
 
   /* Semantic Borders & Dividers */
-  --border: #1D2025;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: #272A30;
-  --border-bright: #4CD7F6;
+  --border: #252D37;
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-medium: #2C3540;
+  --border-bright: #3B82F6;
   --border-glow: rgba(76, 215, 246, 0.25);
 
   /* Primary Accents */
-  --primary: #4CD7F6;
+  --primary: #3B82F6;
   --secondary: #4EDEA3;
-  --accent-cyan: #4CD7F6;
+  --accent-cyan: #3B82F6;
   --accent-teal: #4EDEA3;
   --accent-amber: #EE9800;
   --accent-coral: #FF5449;
-  --accent-blue: #4CD7F6;
+  --accent-blue: #3B82F6;
   --accent-indigo: #1D2025;
 
   /* Semantic Typography */
@@ -59,7 +59,7 @@
   --text-main: #E1E2E8;
   --text-muted: #869397;
   --text-dim: #5A6468;
-  --text-cyan: #4CD7F6;
+  --text-cyan: #3B82F6;
   --text-teal: #4EDEA3;
   --text-disabled: #475569;
 
@@ -70,27 +70,27 @@
   --unknown: #869397;
 
   --status-normal: #4EDEA3;
-  --status-normal-glow: rgba(78, 222, 163, 0.25);
+  
   --status-warning: #EE9800;
-  --status-warning-glow: rgba(238, 152, 0, 0.25);
+  
   --status-critical: #FF5449;
-  --status-critical-glow: rgba(255, 84, 73, 0.25);
+  
   --status-offline: #869397;
-  --status-offline-glow: rgba(134, 147, 151, 0.25);
+  
 
   /* Typography Fonts */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-tech: 'Space Grotesk', 'Orbitron', sans-serif;
+  --font-tech: var(--font-sans);
   --font-mono: 'JetBrains Mono', monospace;
-  --font-display: 'Space Grotesk', 'Orbitron', sans-serif;
+  --font-display: var(--font-sans);
 
   /* Geometry & Physics */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-full: 9999px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-full: 4px;
 
   /* Clean Engineering Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -98,7 +98,7 @@
   --shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.65);
   --shadow-hud: 0 12px 36px rgba(0, 0, 0, 0.85);
   --shadow-glow: none;
-  --glow-cyan: 0 0 12px rgba(76, 215, 246, 0.25);
+  --glow-cyan: none;
   --glow-green: 0 0 12px rgba(78, 222, 163, 0.25);
   --glow-amber: 0 0 12px rgba(238, 152, 0, 0.25);
   --glow-red: 0 0 12px rgba(255, 84, 73, 0.25);

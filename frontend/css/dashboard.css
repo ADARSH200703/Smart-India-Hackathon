@@ -23,7 +23,7 @@
   position: relative;
   overflow: hidden;
   transition: border-color 0.15s ease, background-color 0.15s ease;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -162,7 +162,7 @@
   justify-content: space-between;
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   position: relative;
   overflow: hidden;
 }
@@ -268,7 +268,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 1.25rem 1.4rem;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   position: relative;
 }
 
@@ -338,7 +338,7 @@
   flex-direction: column;
   gap: 0.55rem;
   transition: all 0.15s ease;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .param-item:hover {
@@ -457,7 +457,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   position: relative;
 }
 
@@ -636,7 +636,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .alert-stream {
@@ -855,7 +855,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .hist-panel-title {
@@ -915,7 +915,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .info-card h3 {
@@ -987,7 +987,7 @@
   padding: 0.65rem 1rem;
   font-size: 0.82rem;
   color: var(--text-primary);
-  box-shadow: var(--shadow-lg);
+  box-shadow: none;
   max-width: 360px;
   animation: toastIn 0.2s ease;
   pointer-events: auto;
@@ -1021,7 +1021,7 @@
   padding: 1.75rem;
   max-width: 600px;
   width: 100%;
-  box-shadow: var(--shadow-lg);
+  box-shadow: none;
   animation: modalScale 0.15s ease;
 }
 
@@ -1150,7 +1150,7 @@
   background: rgba(76, 215, 246, 0.18);
   border-color: var(--primary);
   color: var(--primary);
-  box-shadow: 0 0 8px rgba(76, 215, 246, 0.2);
+  box-shadow: none;
 }
 
 .hw-status-pill.stale {
