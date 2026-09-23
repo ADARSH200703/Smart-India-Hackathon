@@ -279,7 +279,7 @@
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   text-decoration: none;
   font-family: var(--font-sans);
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   will-change: transform;
   position: relative;
 }
@@ -358,7 +358,7 @@
   align-items: center;
   gap: 0.5rem;
   background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  border: 1px solid var(--border);
   padding: 0.35rem 0.85rem;
   border-radius: var(--radius-full);
   font-size: 0.72rem;
@@ -417,7 +417,7 @@
 .hero-engine-frame {
   position: relative;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(56, 189, 248, 0.28);
+  border: 1px solid var(--border);
   background: #0B1120;
   overflow: hidden;
   box-shadow: none;
@@ -446,7 +446,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent 5%, var(--primary) 50%, var(--secondary) 80%, transparent 95%);
+  background: var(--surface);
   opacity: 0.65;
   pointer-events: none;
   animation: scanRadar 5s ease-in-out infinite;
@@ -464,7 +464,7 @@
   background: rgba(11, 17, 32, 0.88);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  border: 1px solid var(--border);
   border-radius: var(--radius-full);
   font-family: var(--font-mono);
   font-size: 0.68rem;
@@ -576,7 +576,7 @@
   height: 44px;
   border-radius: 50%;
   background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -664,7 +664,7 @@
   height: 40px;
   border-radius: var(--radius-sm);
   background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid var(--border);
   color: var(--primary);
   display: flex;
   align-items: center;
@@ -699,8 +699,8 @@
 }
 
 .landing-impact-box {
-  background: radial-gradient(ellipse at center, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 4rem 2.5rem;
   text-align: center;
@@ -736,7 +736,7 @@
   letter-spacing: 2px;
   color: var(--primary);
   background: rgba(56, 189, 248, 0.08);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid var(--border);
   padding: 0.45rem 1.15rem;
   border-radius: var(--radius-full);
 }
@@ -754,8 +754,8 @@
 }
 
 .landing-cta-banner {
-  background: linear-gradient(135deg, rgba(23, 32, 51, 0.95), rgba(17, 24, 39, 0.95));
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 4rem 2rem;
   text-align: center;
@@ -1181,7 +1181,7 @@
 .lp-arch-top-box,
 .lp-arch-output-box {
   background: var(--surface);
-  border: 1px solid var(--primary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 0.85rem 2rem;
   text-align: center;
@@ -1299,19 +1299,19 @@
 
 .lp-mode-live {
   background: rgba(34, 197, 94, 0.12);
-  border: 1px solid rgba(34, 197, 94, 0.35);
+  border: 1px solid var(--border);
   color: var(--success);
 }
 
 .lp-mode-sim {
   background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  border: 1px solid var(--border);
   color: var(--warning);
 }
 
 .lp-mode-replay {
   background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  border: 1px solid var(--border);
   color: var(--primary);
 }
 

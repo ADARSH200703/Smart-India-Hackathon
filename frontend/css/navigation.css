@@ -331,7 +331,7 @@
   cursor: pointer;
   position: relative;
   transition: all 0.15s ease;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
 }
 
 .nav-item:hover {
@@ -372,7 +372,7 @@
   color: var(--warning);
   padding: 1px 7px;
   border-radius: var(--radius-full);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  border: 1px solid var(--border);
 }
 
 .sidebar.collapsed .nav-label,

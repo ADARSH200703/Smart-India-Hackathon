@@ -75,7 +75,7 @@
 
 .three-control-btn {
   background: transparent;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   color: var(--text-secondary);
   padding: 0.35rem 0.85rem;
   border-radius: var(--radius-full);
@@ -329,7 +329,7 @@
 .horizon-line {
   width: 12px;
   height: 12px;
-  border: 2px solid var(--primary);
+  border: 1px solid var(--border);
   border-radius: 50%;
 }
 
@@ -346,7 +346,7 @@
 .three-hover-tooltip {
   position: absolute;
   background: var(--background-secondary);
-  border: 1px solid var(--primary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   padding: 0.4rem 0.75rem;
   pointer-events: none;
